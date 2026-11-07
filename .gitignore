@@ -1,0 +1,28 @@
+# IDE
+.idea/
+.vscode/
+
+# WorkBuddy
+.workbuddy/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+
+# 本地运行产物
+plugins/
+extra-plugins/*.jar
+server.jar
+console.log
+result-*.json
+results/
+report.html
+eula.txt
+server.properties
+usercache.json
+logs/
+world*/

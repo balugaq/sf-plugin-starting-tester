@@ -44,13 +44,28 @@ permissions:
   id-token: write
 
 jobs:
+  # 表达式层没有 split/replace，逗号串转数组只能在 shell 里算好传出
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - id: set-matrix
+        env:
+          MCV: ${{ inputs.minecraft_versions }}
+        run: |
+          matrix=$(echo "$MCV" | jq -R -c 'split(",") | map(gsub("^ +| +$"; "")) | map(select(length > 0))')
+          [ -n "$matrix" ] && [ "$matrix" != "[]" ] || matrix='["latest"]'
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+
   test:
     name: "MC ${{ matrix.mcver }}"
     runs-on: ubuntu-latest
+    needs: setup
     strategy:
       fail-fast: false
       matrix:
-        mcver: ${{ fromJSON(toJson(split(inputs.minecraft_versions, ','))) }}
+        mcver: ${{ fromJSON(needs.setup.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4
 
