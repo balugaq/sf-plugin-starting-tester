@@ -27,6 +27,8 @@ fi
 echo "使用 Java $JAVA_VER ($JAVA_BIN)"
 
 # Paper 下载（fill.papermc.io v3 API），带本地缓存（workflow 用 .paper-cache 做 Actions cache）
+# 缓存过期：14 天未访问的缓存 jar 清掉，避免长期占用 GitHub 缓存额度
+find .paper-cache -type f -mtime +14 -delete 2>/dev/null || true
 CACHE_JAR=".paper-cache/server-$PLATFORM-$MCVER.jar"
 BUILD_JSON=$(curl -sf "https://fill.papermc.io/v3/projects/$PLATFORM/versions/$MCVER/builds/latest")
 SERVER_URL=$(echo "$BUILD_JSON" | jq -r '.downloads["server:default"].url')

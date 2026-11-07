@@ -9,8 +9,10 @@ set -euo pipefail
 
 API="https://resources.guizhanss.com/api/v1"
 OUT_DIR="plugins"
-GZ_CACHE=".gzcache"   # 资源站 jar 下载缓存，workflow 按 7 天窗口做 Actions cache
+GZ_CACHE=".gzcache"   # 资源站 jar 下载缓存，workflow 做 Actions cache
 mkdir -p "$OUT_DIR"
+# 缓存过期：7 天未访问的缓存文件清掉，避免长期占用 GitHub 缓存额度
+find "$GZ_CACHE" -type f -mtime +7 -delete 2>/dev/null || true
 
 api() {
   # 带 token 提额；匿名也可读公开资源
