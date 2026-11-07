@@ -36,6 +36,8 @@ jobs:
         run: |
           mkdir -p _site
           cp pages/index.html _site/index.html
+          cp pages/i18n.js _site/i18n.js
+          cp pages/conflicts.json _site/conflicts.json
           # 若仓库历史提交过 report.html 则一并带上（正常情况报告只由测试 workflow 部署）
           [ -f report.html ] && cp report.html _site/report.html || true
 
