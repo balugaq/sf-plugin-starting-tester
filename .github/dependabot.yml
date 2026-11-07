@@ -1,0 +1,18 @@
+version: 2
+updates:
+  # workflow 里用的 actions（checkout / setup-java / upload-artifact / deploy-pages 等）
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    labels:
+      - dependencies
+    groups:
+      # actions 的补丁/小版本升级合并成一个 PR，避免每周一排小 PR
+      actions-minor:
+        update-types:
+          - minor
+          - patch
+
+  # 仓库里没有 package.json / requirements.txt 等依赖清单，pip 脚本跑在 runner 上、
+  # 依赖随 runner 镜像走，故只盯 actions 一个生态。
