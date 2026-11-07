@@ -82,8 +82,9 @@
     position: relative; display: inline-flex; align-items: center; justify-content: center;
     width: 16px; height: 16px; margin-left: .3rem; flex-shrink: 0;
     border-radius: 50%; border: 1px solid #5a6b85; color: #8fa;
-    font-size: .68rem; cursor: help; user-select: none; vertical-align: middle;
+    font-size: .68rem; cursor: pointer; user-select: none; vertical-align: middle;
   }
+  a.helper, a.helper:hover { text-decoration: none; }
   body.light .helper { border-color: var(--border-strong); color: var(--text-2); }
   .helper:hover { border-color: var(--accent); color: #6db3f2; }
   .helper .tip {
@@ -151,6 +152,16 @@
   }
   #list .conflict-btn:hover { background: #d19a32; }
   #list .item .conflict-note { color: var(--run); font-size: .72rem; }
+
+  /* ---------- 排序与翻页 ---------- */
+  .list-toolbar select { width: auto; flex-shrink: 0; }
+  .pager {
+    display: flex; align-items: center; justify-content: center; gap: .7rem;
+    padding: .45rem 0 .55rem; font-size: .8rem; color: var(--text-2);
+  }
+  .pager button { padding: .15rem .7rem; font-size: .78rem; }
+  .pager button:disabled { opacity: .45; cursor: default; }
+  .pager .pg { min-width: 70px; text-align: center; }
 
   /* ---------- 贴底栏 ---------- */
   .sticky-bar {
@@ -254,6 +265,13 @@
     font-size: .8rem; color: var(--text-2); margin: 0; cursor: pointer;
   }
   .ua-check input { width: auto; flex-shrink: 0; }
+  .warn {
+    background: rgba(197,119,0,.15); border: 1px solid var(--run);
+    border-radius: 6px; padding: .5rem .7rem; font-size: .84rem; color: var(--run);
+  }
+  .ua-only-actions .ua-check, .ua-only-actions #uaBtn { display: none; }
+  .ua-only-actions .ua-cancel { background: var(--accent); }
+  footer.site { text-align: center; font-size: .8rem; margin: 1.5rem 0 .5rem; }
   @media (max-width: 520px) { .dialog .body ul { columns: 1; } }
 
   /* ---------- 记录表手机端卡片化 ---------- */
@@ -287,9 +305,9 @@
   <div class="token-line">
     <span class="label" data-i18n="gzToken"></span>
     <input id="gzToken" type="password" data-i18n-ph="gzTokenPh">
-    <span class="helper">?
+    <a class="helper" href="https://resources.guizhanss.com/settings/tokens" target="_blank" rel="noopener">?
       <span class="tip" data-i18n-html="gzTipHtml"></span>
-    </span>
+    </a>
   </div>
   <div class="token-help" id="tokenHelp" hidden data-i18n-html="tokenHelpHtml"></div>
 </div>
@@ -304,10 +322,19 @@
       <button class="ghost mini" onclick="loadCatalog(true)" data-i18n="refresh"></button>
     </h2>
     <div class="list-toolbar">
-      <input id="search" data-i18n-ph="searchPh" oninput="renderList()">
+      <input id="search" data-i18n-ph="searchPh" oninput="renderList(1)">
+      <select id="sortBy" onchange="renderList(1)">
+        <option value="downloads" data-i18n="sortDl"></option>
+        <option value="name" data-i18n="sortName"></option>
+      </select>
     </div>
     <p class="hint" style="margin:.0 0 .5rem" data-i18n="saveHint"></p>
     <div id="list" data-i18n="loadingCatalog"></div>
+    <div class="pager">
+      <button class="ghost mini" id="pgPrev" onclick="gotoPage(-1)" data-i18n="pgPrev"></button>
+      <span class="pg" id="pgInfo"></span>
+      <button class="ghost mini" id="pgNext" onclick="gotoPage(1)" data-i18n="pgNext"></button>
+    </div>
     <div class="sticky-bar">
       <span class="count" id="selCount"></span>
       <button class="ghost mini" id="restoreBtn" style="display:none" onclick="restoreSelection()"></button>
@@ -323,7 +350,7 @@
     <label data-i18n="repoLabel"></label>
     <input id="repo" value="balugaq/sf-plugin-starting-tester">
     <label data-i18n="refLabel"></label>
-    <input id="ref" value="main">
+    <input id="ref" value="master">
     <label data-i18n="verLabel"></label>
     <input id="ver" data-i18n-ph="verPh">
     <label data-i18n="platformLabel"></label>
@@ -388,13 +415,16 @@
       <p class="clause" data-i18n="uaClause1"></p>
       <p class="clause" data-i18n-html="uaClause2"></p>
     </div>
-    <div class="actions">
+    <div class="actions" id="uaActions">
       <label class="ua-check"><input type="checkbox" id="uaCheck"> <span data-i18n="uaCheck"></span></label>
-      <button class="ghost" onclick="document.getElementById('uaMask').classList.remove('show')" data-i18n="cancel"></button>
+      <button class="ghost ua-cancel" id="uaCancel" onclick="closeUA()" data-i18n="cancel"></button>
       <button id="uaBtn" onclick="acceptUA()" data-i18n="uaAgree"></button>
     </div>
   </div>
 </div>
+
+<!-- 页脚：用户协议入口 -->
+<footer class="site"><a href="#" onclick="showUA();return false" data-i18n="uaTitle"></a></footer>
 
 <script src="i18n.js"></script>
 <script>
@@ -441,7 +471,7 @@ setTheme(localStorage.getItem('gz_theme') || 'dark');
 /* ---------- 本地记忆 ---------- */
 $('token').value = localStorage.getItem('gh_pat') || '';
 $('gzToken').value = localStorage.getItem('gz_token') || '';
-$('ref').value = localStorage.getItem('gh_ref') || 'main';
+$('ref').value = localStorage.getItem('gh_ref') || 'master';
 $('repo').value = $('repo').value || guessRepo() || 'balugaq/sf-plugin-starting-tester';
 applyI18n();
 
@@ -510,12 +540,41 @@ function hi(text, q) {
   } catch { return t2; }
 }
 
-function renderList() {
+/* ---------- 排序与翻页（一页最多 5 个，排序偏好记忆在 gz_sort） ---------- */
+const PER_PAGE = 5;
+let PAGE = 1;
+function currentSort() {
+  return $('sortBy')?.value || localStorage.getItem('gz_sort') || 'downloads';
+}
+function gotoPage(delta) {
+  PAGE = Math.max(1, PAGE + delta);
+  renderList();
+  $('list').scrollTop = 0;
+}
+function renderList(resetPage) {
+  if (resetPage === 1) PAGE = 1;
+  const sort = currentSort();
+  if ($('sortBy')) $('sortBy').value = sort;
+  localStorage.setItem('gz_sort', sort);
   const q = $('search')?.value.trim().toLowerCase() || '';
-  const items = (CATALOG?.items || []).filter(p =>
+  let items = (CATALOG?.items || []).filter(p =>
     !q || p.name?.toLowerCase().includes(q) || p.slug.toLowerCase().includes(q) || p.summary?.toLowerCase().includes(q));
+  if (sort === 'name') {
+    items.sort((a, b) => String(a.name || a.slug).localeCompare(String(b.name || b.slug), undefined, { sensitivity: 'base' }));
+  } else {
+    items.sort((a, b) => (b.downloads ?? 0) - (a.downloads ?? 0));
+  }
   const el = $('list');
-  if (!items.length) { el.innerHTML = `<span class="hint">${esc(t('noMatch'))}</span>`; $('selCount').textContent = t('selCount', { n: sel.size }); return; }
+  $('selCount').textContent = t('selCount', { n: sel.size });
+  if (!items.length) {
+    el.innerHTML = `<span class="hint">${esc(t('noMatch'))}</span>`;
+    $('pgInfo').textContent = t('pgInfo', { p: 1, n: 1 });
+    $('pgPrev').disabled = $('pgNext').disabled = true;
+    return;
+  }
+  const pages = Math.max(1, Math.ceil(items.length / PER_PAGE));
+  PAGE = Math.min(PAGE, pages);
+  items = items.slice((PAGE - 1) * PER_PAGE, PAGE * PER_PAGE);
   el.innerHTML = items.map(p => {
     const st = conflictState(p.slug);
     const blocked = st && st.blockedBy;
@@ -529,7 +588,9 @@ function renderList() {
       ${blocked ? `<button class="conflict-btn" title="${esc(st.reason)}" onclick="event.preventDefault();unselectSlug('${st.blockedBy}')">${esc(t('conflictBtn', { s: st.blockedBy }))}</button>` : ''}
     </label>`;
   }).join('');
-  $('selCount').textContent = t('selCount', { n: sel.size });
+  $('pgInfo').textContent = t('pgInfo', { p: PAGE, n: pages });
+  $('pgPrev').disabled = PAGE <= 1;
+  $('pgNext').disabled = PAGE >= pages;
 }
 function saveSelection() { localStorage.setItem('gz_selection', JSON.stringify([...sel])); }
 function toggleSel(slug, on) {
@@ -641,13 +702,24 @@ document.addEventListener('click', e => {
 });
 
 /* ---------- ② 确认与触发 ---------- */
+/* 当前测试矩阵（插件集合 + MC 版本集合 + 平台），用于重复测试提示 */
+function currentMatrix() {
+  return JSON.stringify({
+    s: [...sel].map(s => s.toLowerCase()).sort(),
+    m: ($('mcvers').value || '').split(',').map(x => x.trim().toLowerCase()).filter(Boolean).sort(),
+    p: $('platform').value
+  });
+}
 function openConfirm() {
   if (!sel.size) { alert(t('selNone')); return; }
   const mc = $('mcvers').value.trim();
   if (!mc) { alert(t('mcNone')); return; }
   const slugs = [...sel];
   const jars = $('extrajars').value.split(/\n+/).map(s => s.trim()).filter(Boolean);
+  // 与上次完全相同的矩阵：可能是误触，先确认
+  const dup = localStorage.getItem('gz_last_matrix') === currentMatrix();
   $('confirmBody').innerHTML = `
+    ${dup ? `<p class="warn">${esc(t('dupMatrix'))}</p>` : ''}
     <p>${t('confirmBody', { n: slugs.length, mc: esc(mc), pf: esc($('platform').value) })}</p>
     ${jars.length ? `<p class="hint">${esc(t('jarsNote', { n: jars.length }))}</p>` : ''}
     <ul>${slugs.map(s => `<li>${esc(s)}</li>`).join('')}</ul>
@@ -659,7 +731,7 @@ function openConfirm() {
 /* 校验仓库与分支真实存在，返回确认后的分支名 */
 async function validateTarget() {
   const repo = repoPath();
-  const ref = $('ref').value.trim() || 'main';
+  const ref = $('ref').value.trim() || 'master';
   let res = await fetch(`${GH}/repos/${repo}`, { headers: ghHeaders() });
   if (res.status === 404) throw new Error(t('repoNotExist', { r: repo }));
   if (!res.ok) throw new Error(t('apiErr', { s: res.status, w: t('repoCheck') }));
@@ -715,6 +787,7 @@ async function doDispatch(ref) {
       })
     });
     if (res.status !== 204) throw new Error(`HTTP ${res.status} ${(await res.text()).slice(0, 200)}`);
+    localStorage.setItem('gz_last_matrix', currentMatrix());
     go.textContent = t('triggered');
     go.className = 'msg';
     $('mask').classList.remove('show');
@@ -730,6 +803,16 @@ function acceptUA() {
   $('uaMask').classList.remove('show');
   $('goMsg').textContent = '';
   startBatch();
+}
+/* 页脚「用户协议」：纯查看模式（无勾选、无同意按钮） */
+function showUA() {
+  $('uaActions').classList.add('ua-only-actions');
+  $('uaCancel').textContent = t('uaClose');
+  $('uaMask').classList.add('show');
+}
+function closeUA() {
+  $('uaMask').classList.remove('show');
+  $('uaActions').classList.remove('ua-only-actions');
 }
 
 /* ---------- ③ 测试记录 ---------- */

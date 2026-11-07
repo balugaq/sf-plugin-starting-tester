@@ -50,7 +50,11 @@ window.I18N = {
     selNone: '请先勾选至少一个插件', mcNone: '请选择至少一个 MC 版本',
     themeDark: '夜间', themeLight: '日间', langBtn: 'EN',
     colTime: '时间', colRun: '运行', colStatus: '状态 & 操作',
-    conflictBtn: '✕ 取消选择 {s}', conflictWith: '与 {s} 冲突'
+    conflictBtn: '✕ 取消选择 {s}', conflictWith: '与 {s} 冲突',
+    sortDl: '按下载量', sortName: '按名称 A→Z',
+    pgPrev: '‹ 上一页', pgNext: '下一页 ›', pgInfo: '第 {p} / {n} 页',
+    dupMatrix: '⚠ 你上一次测试的插件与版本矩阵与此完全相同，可能是误触。确定要再测试一次吗？',
+    uaClose: '关闭'
   },
   'en': {
     title: '🧪 Plugin Compatibility Test Console',
@@ -101,6 +105,10 @@ window.I18N = {
     selNone: 'Select at least one plugin', mcNone: 'Select at least one MC version',
     themeDark: 'Dark', themeLight: 'Light', langBtn: '中文',
     colTime: 'Time', colRun: 'Run', colStatus: 'Status & actions',
-    conflictBtn: '✕ Unselect {s}', conflictWith: 'conflicts with {s}'
+    conflictBtn: '✕ Unselect {s}', conflictWith: 'conflicts with {s}',
+    sortDl: 'By downloads', sortName: 'By name A→Z',
+    pgPrev: '‹ Prev', pgNext: 'Next ›', pgInfo: 'Page {p} / {n}',
+    dupMatrix: '⚠ Your last test used exactly this plugin & version matrix — possibly a misclick. Run it again anyway?',
+    uaClose: 'Close'
   }
 };
