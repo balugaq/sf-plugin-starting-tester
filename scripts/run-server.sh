@@ -8,14 +8,20 @@ MCVER="${1// /}"   # 逗号后带空格的输入（"1.20.4, 1.20.6"）会带出�
 PLATFORM="${2:-paper}"
 START_TIMEOUT="${START_TIMEOUT:-900}"
 
-# JDK 选择: 1.20.5+ 需要 Java 21，更早需要 17
-NEEDS21=$(printf '%s\n1.20.5\n' "$MCVER" | sort -V | tail -1)
-if [ "$NEEDS21" = "$MCVER" ]; then
-  JAVA_BIN="${JAVA_HOME_21_X64:-}/bin/java"
-  JAVA_VER=21
+# JDK 选择: 1.20.5+ 需要 21，26.x 需要 25
+NEEDS25=$(printf '%s\n26\n' "$MCVER" | sort -V | tail -1)
+if [ "$NEEDS25" = "$MCVER" ]; then
+  JAVA_BIN="${JAVA_HOME_25_X64:-}/bin/java"
+  JAVA_VER=25
 else
-  JAVA_BIN="${JAVA_HOME_17_X64:-}/bin/java"
-  JAVA_VER=17
+  NEEDS21=$(printf '%s\n1.20.5\n' "$MCVER" | sort -V | tail -1)
+  if [ "$NEEDS21" = "$MCVER" ]; then
+    JAVA_BIN="${JAVA_HOME_21_X64:-}/bin/java"
+    JAVA_VER=21
+  else
+    JAVA_BIN="${JAVA_HOME_17_X64:-}/bin/java"
+    JAVA_VER=17
+  fi
 fi
 [ -x "$JAVA_BIN" ] || JAVA_BIN="java"
 echo "使用 Java $JAVA_VER ($JAVA_BIN)"
@@ -83,18 +89,20 @@ $(grep -iE -B1 -A8 "Could not load plugin|Invalid plugin.yml|Cannot load plugin|
         status=success
       fi
     fi
-    jq -n --arg slug "$slug" --arg name "$name" --arg status "$status" --arg error "$error" \
+    jq -nc --arg slug "$slug" --arg name "$name" --arg status "$status" --arg error "$error" \
       '{slug:$slug, name:$name, status:$status, error_excerpt:$error}'
   done
 }
 
 RESULTS=$(judge_results)
-PASSED=$(echo "$RESULTS" | jq -s '[.[] | select(.status == "success")] | length')
-TOTAL=$(echo "$RESULTS" | jq -s 'length')
+# 逐行对象合并成数组；多行 pretty JSON 直接拼 [$RESULTS] 会因缺逗号非法
+RESULT_ARR=$(echo "$RESULTS" | jq -s -c '.' 2>/dev/null || echo '[]')
+PASSED=$(echo "$RESULT_ARR" | jq '[.[] | select(.status == "success")] | length')
+TOTAL=$(echo "$RESULT_ARR" | jq 'length')
 
 jq -n \
   --arg mc "$MCVER" --arg platform "$PLATFORM" --arg java "$JAVA_VER" \
-  --argjson results "[$RESULTS]" \
+  --argjson results "$RESULT_ARR" \
   --arg server_status "$SERVER_OK" \
   --argjson passed "$PASSED" --argjson total "$TOTAL" \
   '{mc_version:$mc, platform:$platform, java:$java,

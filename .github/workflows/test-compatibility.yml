@@ -74,6 +74,11 @@ jobs:
           distribution: temurin
           java-version: "21"
 
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+
       - name: 下载自备 jar
         if: inputs.extra_jars != ''
         run: |

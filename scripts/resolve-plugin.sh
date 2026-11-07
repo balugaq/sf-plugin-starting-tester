@@ -133,16 +133,22 @@ for SLUG in $(echo "$SLUGS" | tr ',' ' '); do
   [ -z "$SLUG" ] && continue
   echo "===== $SLUG ====="
   BEFORE=$(ls "$OUT_DIR" 2>/dev/null | grep -c '\.jar$' || true)
+  # 只在本 slug 新下载的 jar 里选（排除依赖/先前插件的 jar），jar 名带空格必须按行读
+  ls "$OUT_DIR"/*.jar > "$OUT_DIR/.pre_list" 2>/dev/null || true
   if ! download_plugin "$SLUG" "${2:-}"; then
     # 记录下载失败，报告里如实展示
     jq --arg s "$SLUG" '. + [{slug:$s, name:$s, jar:null, downloaded:false}]' "$MANIFEST" > "$MANIFEST.tmp" && mv "$MANIFEST.tmp" "$MANIFEST"
     continue
   fi
   # 最新下载的 jar 可能是无 plugin.yml 的附属产物（如 -all.jar），按新旧顺序挑第一个有效的
+  # jar 名普遍带空格，必须按行读不能按词拆
   JAR=""
-  for cand in $(ls -t "$OUT_DIR"/*.jar 2>/dev/null); do
+  while IFS= read -r cand; do
+    grep -qxF "$cand" "$OUT_DIR/.pre_list" && continue
     if unzip -l "$cand" plugin.yml >/dev/null 2>&1; then JAR="$cand"; break; fi
-  done
+    # 打出 unzip 的报错，方便在 CI 日志里诊断瞬时下载异常
+    unzip -l "$cand" plugin.yml 2>&1 | head -2 || true
+  done < <(ls -t "$OUT_DIR"/*.jar 2>/dev/null)
   if [ -z "$JAR" ]; then
     jq --arg s "$SLUG" '. + [{slug:$s, name:$s, jar:null, downloaded:false}]' "$MANIFEST" > "$MANIFEST.tmp" && mv "$MANIFEST.tmp" "$MANIFEST"
     echo "警告: $SLUG 下载的 jar 均无 plugin.yml，跳过依赖解析"
