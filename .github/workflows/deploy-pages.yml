@@ -1,0 +1,49 @@
+name: Deploy Pages
+
+# push 到 main 时自动部署控制台页面（pages/index.html）到 GitHub Pages，
+# 修改前端后无需手动跑测试即可在 Pages 链接看到最新版本。
+# 测试完成后由 test-compatibility.yml 的 report job 覆盖部署（控制台 + 最新报告）。
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "pages/**"
+      - ".github/workflows/deploy-pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 同名 Pages 部署并发会冲突，排队处理
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: 部署控制台
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 组装站点
+        run: |
+          mkdir -p _site
+          cp pages/index.html _site/index.html
+          # 若仓库历史提交过 report.html 则一并带上（正常情况报告只由测试 workflow 部署）
+          [ -f report.html ] && cp report.html _site/report.html || true
+
+      - name: 上传 Pages 产物
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: 部署 Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
