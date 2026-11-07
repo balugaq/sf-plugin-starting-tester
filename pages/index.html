@@ -12,7 +12,16 @@
     --text-1: #e6e6e6; --text-2: #9ab; --text-3: #778;
     --accent: #2d6cdf; --accent-hover: #3d7cf0;
     --ok: #0a7d32; --fail: #c62828; --run: #b58a2c;
+    --panel: #16202f; --tip-bg: #0d1117;
     --radius: 10px;
+  }
+  /* ---------- 日间模式：只翻转变量 ---------- */
+  body.light {
+    color-scheme: light;
+    --bg-1: #f4f6f9; --bg-2: #ffffff; --bg-3: #edf1f6;
+    --border: #dde3ec; --border-strong: #c3ccd9;
+    --text-1: #1c2430; --text-2: #46536a; --text-3: #7d8899;
+    --panel: #eef2f7; --tip-bg: #ffffff;
   }
   * { box-sizing: border-box; }
   body {
@@ -23,9 +32,10 @@
   }
 
   /* ---------- 顶栏 ---------- */
-  .topbar { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; margin-bottom: .4rem; }
-  h1 { font-size: 1.25rem; margin: 0; display: flex; align-items: center; gap: .5rem; }
+  .topbar { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; margin-bottom: .4rem; }
+  h1 { font-size: 1.25rem; margin: 0; display: flex; align-items: center; gap: .5rem; flex: 1; }
   .topbar .sub { font-size: .78rem; color: var(--text-3); flex: 1 1 100%; margin: 0 0 .6rem; }
+  .topbar button.active { background: var(--accent); }
 
   /* ---------- 卡片 ---------- */
   .card {
@@ -37,16 +47,19 @@
     font-size: .7rem; background: rgba(45,108,223,.15); color: #6db3f2;
     border: 1px solid rgba(45,108,223,.35); border-radius: 4px; padding: .05rem .4rem;
   }
+  body.light h2 .step { color: var(--accent); }
   h2 .spacer { flex: 1; }
 
   /* ---------- 表单 ---------- */
   label { display: block; font-size: .78rem; color: #8fa; margin: .55rem 0 .2rem; }
-  input, select {
+  body.light label { color: var(--text-2); }
+  input, select, textarea {
     width: 100%; padding: .42rem .55rem; border-radius: 6px;
     border: 1px solid var(--border-strong); background: var(--bg-1);
-    color: var(--text-1); font-size: .86rem;
+    color: var(--text-1); font-size: .86rem; font-family: inherit;
   }
-  input:focus, select:focus { outline: 2px solid rgba(45,108,223,.5); outline-offset: 0; border-color: var(--accent); }
+  textarea { resize: vertical; line-height: 1.5; }
+  input:focus, select:focus, textarea:focus { outline: 2px solid rgba(45,108,223,.5); outline-offset: 0; border-color: var(--accent); }
   .row { display: flex; gap: .8rem; flex-wrap: wrap; }
   .row > div { flex: 1 1 140px; }
 
@@ -71,14 +84,15 @@
     border-radius: 50%; border: 1px solid #5a6b85; color: #8fa;
     font-size: .68rem; cursor: help; user-select: none; vertical-align: middle;
   }
+  body.light .helper { border-color: var(--border-strong); color: var(--text-2); }
   .helper:hover { border-color: var(--accent); color: #6db3f2; }
   .helper .tip {
     display: none; position: absolute; bottom: calc(100% + 8px); left: 50%;
     transform: translateX(-50%); z-index: 20;
     width: max-content; max-width: 300px; padding: .5rem .7rem;
-    background: #0d1117; border: 1px solid var(--border-strong); border-radius: 6px;
+    background: var(--tip-bg); border: 1px solid var(--border-strong); border-radius: 6px;
     color: var(--text-2); font-size: .74rem; line-height: 1.5;
-    box-shadow: 0 4px 16px rgba(0,0,0,.5); text-align: left; white-space: normal;
+    box-shadow: 0 4px 16px rgba(0,0,0,.35); text-align: left; white-space: normal;
   }
   .helper .tip a { color: #6db3f2; }
   .helper:hover .tip { display: block; }
@@ -88,13 +102,18 @@
     background: #2a2313; border: 1px solid #66551f; border-radius: 8px;
     padding: .5rem .8rem; margin-bottom: 1rem;
   }
+  body.light .token-bar { background: #fdf6e0; border-color: #d9c26a; }
   .token-line { display: flex; gap: .6rem; align-items: center; }
   .token-line + .token-line { margin-top: .45rem; }
   .token-line .label { font-size: .8rem; color: #d9c26a; white-space: nowrap; }
+  body.light .token-line .label { color: #8a6d1a; }
   .token-line input { flex: 1; background: #1c1a10; border-color: #66551f; }
+  body.light .token-line input { background: #fff; border-color: #d9c26a; }
   .token-help { margin-top: .45rem; font-size: .76rem; color: #d9c26a; line-height: 1.45; }
+  body.light .token-help { color: #8a6d1a; }
   .token-help[hidden] { display: none; }
-  .token-help a { color: #f0d97a; }
+  .token-help a, .token-line .tip a { color: #f0d97a; }
+  body.light .token-help a, body.light .token-line .tip a { color: var(--accent); }
 
   /* ---------- 工作区：列表 + 参数 ---------- */
   .workspace { display: grid; grid-template-columns: 1fr 300px; gap: 1rem; align-items: start; }
@@ -119,14 +138,25 @@
   #list .item input[type=checkbox] { width: auto; margin-top: .28rem; flex-shrink: 0; cursor: pointer; }
   #list .item .body { flex: 1; min-width: 0; }
   #list .item .name { font-size: .88rem; }
-  #list .item .meta { color: var(--text-3); font-size: .75rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #list .item .meta {
+    color: var(--text-3); font-size: .75rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    display: flex; align-items: center; gap: 3px;
+  }
+  #list .item .meta svg { flex-shrink: 0; opacity: .8; }
   #list mark { background: #2d6cdf55; color: #cfe2ff; border-radius: 2px; padding: 0 1px; }
+  body.light #list mark { color: #1c4a8f; }
+  #list .conflict-btn {
+    padding: .08rem .5rem; font-size: .72rem; background: var(--run);
+    margin-left: auto; flex-shrink: 0; white-space: nowrap;
+  }
+  #list .conflict-btn:hover { background: #d19a32; }
+  #list .item .conflict-note { color: var(--run); font-size: .72rem; }
 
   /* ---------- 贴底栏 ---------- */
   .sticky-bar {
     position: sticky; bottom: 0;
     display: flex; gap: .7rem; align-items: center; flex-wrap: wrap;
-    background: #16202f; border-top: 1px solid var(--accent);
+    background: var(--panel); border-top: 1px solid var(--accent);
     margin: .6rem -1.2rem 0; padding: .55rem 1.2rem;
     border-radius: 0 0 var(--radius) var(--radius);
   }
@@ -135,8 +165,9 @@
 
   /* ---------- 记录表 ---------- */
   table { width: 100%; border-collapse: collapse; font-size: .85rem; table-layout: fixed; }
-  th, td { text-align: left; padding: .45rem .5rem; border-bottom: 1px solid #262d3a; vertical-align: middle; }
+  th, td { text-align: left; padding: .45rem .5rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
   th { color: #8fa; font-weight: 500; font-size: .78rem; }
+  body.light th { color: var(--text-2); }
   td.col-time { width: 150px; color: var(--text-2); font-size: .8rem; }
   td.col-run { width: 70px; color: var(--text-3); }
   td a { margin-left: .5rem; }
@@ -151,41 +182,79 @@
   .badge.fail { background: var(--fail); }
   .badge.run { background: var(--run); }
   .badge.queue { background: #556; }
+  .badge.partial { background: #c77700; }
 
   /* ---------- 提示文本 ---------- */
   .hint { font-size: .76rem; color: var(--text-3); margin: .3rem 0 0; }
   .msg { font-size: .84rem; margin-top: .8rem; color: var(--text-2); white-space: pre-wrap; }
   .err { color: #f2a09e; }
+  body.light .err { color: #b3261e; }
   a { color: #6db3f2; text-decoration: none; }
+  body.light a { color: var(--accent); }
   a:hover { text-decoration: underline; }
 
-  /* ---------- 确认弹窗 ---------- */
-  #mask {
+  /* ---------- MC 版本多选下拉 ---------- */
+  .mcsel { position: relative; }
+  .mcsel-btn {
+    width: 100%; display: flex; justify-content: space-between; align-items: center;
+    background: var(--bg-1); border: 1px solid var(--border-strong);
+    color: var(--text-1); padding: .42rem .55rem; font-size: .86rem; text-align: left;
+  }
+  .mcsel-btn:hover { background: var(--bg-1); border-color: var(--accent); }
+  .mcsel-btn .caret { opacity: .6; margin-left: .5rem; }
+  .mcsel-panel {
+    display: none; position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 15;
+    background: var(--bg-2); border: 1px solid var(--border-strong); border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.35); padding: .5rem;
+  }
+  body.light .mcsel-panel { box-shadow: 0 8px 24px rgba(0,0,0,.15); }
+  .mcsel.open .mcsel-panel { display: block; }
+  .mcsel-panel input[type=text] { margin-bottom: .4rem; }
+  #mcList { max-height: 260px; overflow-y: auto; }
+  #mcList .grp { font-size: .72rem; color: var(--text-3); padding: .3rem .2rem .1rem; }
+  #mcList .opt {
+    display: flex; align-items: center; gap: .45rem; padding: .18rem .3rem;
+    border-radius: 4px; cursor: pointer; font-size: .82rem;
+  }
+  #mcList .opt:hover { background: var(--bg-3); }
+  #mcList .opt input { width: auto; flex-shrink: 0; }
+  #mcList mark { background: #2d6cdf55; color: inherit; border-radius: 2px; padding: 0 1px; }
+
+  /* ---------- 弹窗（确认 / 用户协议共用） ---------- */
+  .mask {
     position: fixed; inset: 0; background: rgba(0,0,0,.65);
     display: none; align-items: center; justify-content: center; z-index: 10;
     padding: 1rem;
   }
-  #mask.show { display: flex; }
-  #confirm {
+  body.light .mask { background: rgba(30,40,60,.45); }
+  .mask.show { display: flex; }
+  .dialog {
     background: var(--bg-2); border: 1px solid var(--accent); border-radius: var(--radius);
     max-width: 680px; width: 100%; max-height: 84vh;
     display: flex; flex-direction: column; overflow: hidden;
   }
-  #confirm .head { padding: 1rem 1.2rem .6rem; border-bottom: 1px solid var(--border); }
-  #confirm .head h2 { margin: 0; }
-  #confirm .body { padding: .8rem 1.2rem; overflow-y: auto; flex: 1; }
-  #confirm .body ul {
+  .dialog .head { padding: 1rem 1.2rem .6rem; border-bottom: 1px solid var(--border); }
+  .dialog .head h2 { margin: 0; }
+  .dialog .body { padding: .8rem 1.2rem; overflow-y: auto; flex: 1; }
+  .dialog .body ul {
     columns: 2; column-gap: 1.2rem;
     font-size: .82rem; padding-left: 1.1rem; margin: .5rem 0;
   }
-  #confirm .body li { break-inside: avoid; padding: .1rem 0; }
-  #confirm .actions {
-    display: flex; gap: .8rem; justify-content: flex-end;
+  .dialog .body li { break-inside: avoid; padding: .1rem 0; }
+  .dialog .body .clause { font-size: .84rem; color: var(--text-2); }
+  .dialog .body .clause b { color: var(--text-1); }
+  .dialog .actions {
+    display: flex; gap: .8rem; justify-content: flex-end; align-items: center;
     padding: .8rem 1.2rem; border-top: 1px solid var(--border);
-    background: #16202f;
+    background: var(--panel);
   }
-  #confirm .actions .msg { flex: 1; margin: 0; align-self: center; }
-  @media (max-width: 520px) { #confirm .body ul { columns: 1; } }
+  .dialog .actions .msg { flex: 1; margin: 0; align-self: center; }
+  .ua-check {
+    display: flex; flex: 1; align-items: center; gap: .45rem;
+    font-size: .8rem; color: var(--text-2); margin: 0; cursor: pointer;
+  }
+  .ua-check input { width: auto; flex-shrink: 0; }
+  @media (max-width: 520px) { .dialog .body ul { columns: 1; } }
 
   /* ---------- 记录表手机端卡片化 ---------- */
   @media (max-width: 600px) {
@@ -201,35 +270,28 @@
 
 <!-- 顶栏 -->
 <div class="topbar">
-  <h1>🧪 插件兼容性测试控制台</h1>
+  <h1 data-i18n="title"></h1>
+  <button class="ghost mini" id="btnDark" onclick="setTheme('dark')" data-i18n="themeDark"></button>
+  <button class="ghost mini" id="btnLight" onclick="setTheme('light')" data-i18n="themeLight"></button>
+  <button class="ghost mini" id="btnLang" onclick="toggleLang()"></button>
 </div>
-<p class="sub">从鬼斩资源站勾选附属（支持批量上百个），一次开服同时测试所有插件的启动兼容性。仅覆盖启动阶段判定。</p>
+<p class="sub" data-i18n="sub"></p>
 
 <!-- Token 条 -->
 <div class="token-bar">
   <div class="token-line">
-    <span class="label">🔑 GitHub Token</span>
-    <input id="token" type="password" placeholder="github_pat_...">
+    <span class="label" data-i18n="ghToken"></span>
+    <input id="token" type="password" data-i18n-ph="ghTokenPh">
     <button class="ghost mini" onclick="document.getElementById('tokenHelp').hidden ^= 1">?</button>
   </div>
   <div class="token-line">
-    <span class="label">🍬 鬼斩 Token</span>
-    <input id="gzToken" type="password" placeholder="选填，资源站个人 Token">
+    <span class="label" data-i18n="gzToken"></span>
+    <input id="gzToken" type="password" data-i18n-ph="gzTokenPh">
     <span class="helper">?
-      <span class="tip">
-        鬼斩资源站的<b>个人 API Token</b>，在
-        <a href="https://resources.guizhanss.com/settings/tokens" target="_blank">资源站 → 设置 → Token</a>
-        页面生成。<br>
-        <b>选填</b>：控制台用到的接口（插件目录、版本、下载）都是公开的，不填也能正常使用。
-        填了可以在高频请求时提高 API 速率限制，Token 只存浏览器 localStorage。
-      </span>
+      <span class="tip" data-i18n-html="gzTipHtml"></span>
     </span>
   </div>
-  <div class="token-help" id="tokenHelp" hidden>
-    首次使用需要 fine-grained PAT：仅勾选本仓库的 <b>Actions: Read and write</b>，
-    在 <a href="https://github.com/settings/personal-access-tokens/new" target="_blank">GitHub Token 设置</a> 生成。
-    Token 只存浏览器 localStorage。
-  </div>
+  <div class="token-help" id="tokenHelp" hidden data-i18n-html="tokenHelpHtml"></div>
 </div>
 
 <!-- 工作区 -->
@@ -237,83 +299,138 @@
 
   <!-- 左：选择插件 -->
   <div class="card list-card">
-    <h2><span class="step">①</span>选择插件
+    <h2><span class="step">①</span><span data-i18n="step1"></span>
       <span class="spacer"></span>
-      <button class="ghost mini" onclick="loadCatalog(true)">刷新目录</button>
+      <button class="ghost mini" onclick="loadCatalog(true)" data-i18n="refresh"></button>
     </h2>
     <div class="list-toolbar">
-      <input id="search" placeholder="🔍 搜索名称 / 简介…" oninput="renderList()">
+      <input id="search" data-i18n-ph="searchPh" oninput="renderList()">
     </div>
-    <div id="list"><span class="hint">填好 GitHub Token 后自动加载目录</span></div>
+    <p class="hint" style="margin:.0 0 .5rem" data-i18n="saveHint"></p>
+    <div id="list" data-i18n="loadingCatalog"></div>
     <div class="sticky-bar">
-      <span class="count" id="selCount">已选 0 个插件</span>
-      <button class="ghost mini" onclick="sel.clear();renderList()">清空</button>
+      <span class="count" id="selCount"></span>
+      <button class="ghost mini" id="restoreBtn" style="display:none" onclick="restoreSelection()"></button>
+      <button class="ghost mini" onclick="clearSelection()" data-i18n="clear"></button>
       <span class="spacer"></span>
-      <button onclick="openConfirm()">开始测试 ▶</button>
+      <button onclick="openConfirm()" data-i18n="startBtn"></button>
     </div>
   </div>
 
   <!-- 右：测试参数 -->
   <div class="card">
-    <h2><span class="step">②</span>测试参数</h2>
-    <label>仓库（owner/repo）*</label>
+    <h2><span class="step">②</span><span data-i18n="step2"></span></h2>
+    <label data-i18n="repoLabel"></label>
     <input id="repo" value="balugaq/sf-plugin-starting-tester">
-    <label>分支</label>
+    <label data-i18n="refLabel"></label>
     <input id="ref" value="main">
-    <label>插件版本（全部应用，留空=最新）</label>
-    <input id="ver" placeholder="留空">
-    <label>服务端平台</label>
-    <select id="platform"><option>paper</option><option>purpur</option><option>folia</option></select>
-    <label>MC 版本（逗号分隔，每个一次开服）*</label>
-    <input id="mcvers" value="26.2">
-    <label>开服超时秒数</label>
+    <label data-i18n="verLabel"></label>
+    <input id="ver" data-i18n-ph="verPh">
+    <label data-i18n="platformLabel"></label>
+    <select id="platform" onchange="loadMcVersions(true)">
+      <option value="paper">paper</option><option value="purpur">purpur</option><option value="folia">folia</option>
+    </select>
+    <label data-i18n="mcLabel"></label>
+    <div class="mcsel" id="mcSel">
+      <input type="hidden" id="mcvers" value="26.2">
+      <button type="button" class="mcsel-btn" id="mcToggle" onclick="toggleMcPanel()">
+        <span id="mcBtnText"></span><span class="caret">▾</span>
+      </button>
+      <div class="mcsel-panel" id="mcPanel">
+        <input type="text" id="mcSearch" data-i18n-ph="mcSearchPh" oninput="renderMcList()">
+        <div id="mcList"></div>
+        <div id="mcFallback" style="display:none">
+          <input type="text" id="mcManual" data-i18n-ph="mcFallbackPh" oninput="document.getElementById('mcvers').value=this.value">
+          <p class="hint" data-i18n="mcLoadFail"></p>
+        </div>
+      </div>
+    </div>
+    <label data-i18n="timeoutLabel"></label>
     <input id="timeout" value="900">
-    <label>额外 softdepend（逗号分隔）</label>
-    <input id="softdep" placeholder="留空，GuizhanLibPlugin 自动装">
+    <label data-i18n="jarsLabel"></label>
+    <textarea id="extrajars" rows="3" data-i18n-ph="jarsPh"></textarea>
   </div>
 
 </div>
 
 <!-- 记录 -->
 <div class="card">
-  <h2><span class="step">③</span>测试记录
+  <h2><span class="step">③</span><span data-i18n="step3"></span>
     <span class="spacer"></span>
-    <button class="ghost mini" onclick="loadResults()">刷新</button>
+    <button class="ghost mini" onclick="loadResults()" data-i18n="refreshRec"></button>
   </h2>
-  <p class="hint" style="margin-bottom:.6rem">
-    每个 MC 版本对应一条记录；HTML 报告（每个插件的 ✔/✘ 与报错）部署在 Pages 的 report.html，随最近一次测试更新。
-  </p>
+  <p class="hint" style="margin-bottom:.6rem" data-i18n="recordsHint"></p>
   <table>
-    <thead><tr><th class="col-time">时间</th><th class="col-run">运行</th><th class="col-status">状态 &amp; 操作</th></tr></thead>
-    <tbody id="results"><tr><td colspan="3" class="hint">等待触发测试后显示</td></tr></tbody>
+    <thead><tr><th class="col-time" data-i18n="colTime"></th><th class="col-run" data-i18n="colRun"></th><th class="col-status" data-i18n="colStatus"></th></tr></thead>
+    <tbody id="results"><tr><td colspan="3" class="hint" data-i18n="waitResults"></td></tr></tbody>
   </table>
 </div>
 
 <!-- 确认弹窗 -->
-<div id="mask">
-  <div id="confirm">
-    <div class="head"><h2>确认开始测试</h2></div>
+<div class="mask" id="mask">
+  <div class="dialog" id="confirm">
+    <div class="head"><h2 data-i18n="confirmTitle"></h2></div>
     <div class="body" id="confirmBody"></div>
     <div class="actions">
       <div class="msg" id="goMsg"></div>
-      <button class="ghost" onclick="document.getElementById('mask').classList.remove('show')">取消</button>
-      <button class="btn-danger" id="goBtn" onclick="startBatch()">🚀 正式开始</button>
+      <button class="ghost" onclick="document.getElementById('mask').classList.remove('show')" data-i18n="cancel"></button>
+      <button class="btn-danger" id="goBtn" onclick="startBatch()" data-i18n="goBtn"></button>
     </div>
   </div>
 </div>
 
+<!-- 用户协议弹窗（首次开服时强制弹出） -->
+<div class="mask" id="uaMask">
+  <div class="dialog" id="ua">
+    <div class="head"><h2 data-i18n="uaTitle"></h2></div>
+    <div class="body">
+      <p class="clause" data-i18n="uaIntro"></p>
+      <p class="clause" data-i18n="uaClause1"></p>
+      <p class="clause" data-i18n-html="uaClause2"></p>
+    </div>
+    <div class="actions">
+      <label class="ua-check"><input type="checkbox" id="uaCheck"> <span data-i18n="uaCheck"></span></label>
+      <button class="ghost" onclick="document.getElementById('uaMask').classList.remove('show')" data-i18n="cancel"></button>
+      <button id="uaBtn" onclick="acceptUA()" data-i18n="uaAgree"></button>
+    </div>
+  </div>
+</div>
+
+<script src="i18n.js"></script>
 <script>
 const GH = 'https://api.github.com';
 const SITE = 'https://resources.guizhanss.com/api/v1';
+const FILL = 'https://fill.papermc.io/v3';
 const WF = 'test-compatibility.yml';
+const ICO_DL = '<svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 1a.75.75 0 0 1 .75.75v6.19l2.22-2.22a.75.75 0 1 1 1.06 1.06L8 10.81 3.97 6.78a.75.75 0 0 1 1.06-1.06l2.22 2.22V1.75A.75.75 0 0 1 8 1zm-6.5 11.25a.75.75 0 0 1 .75-.75h11.5a.75.75 0 0 1 0 1.5H2.25a.75.75 0 0 1-.75-.75z"/></svg>';
 const $ = id => document.getElementById(id);
 
+/* ---------- 主题（日间/夜间）与语言 ---------- */
+function setTheme(mode) {
+  document.body.classList.toggle('light', mode === 'light');
+  localStorage.setItem('gz_theme', mode);
+  $('btnDark').classList.toggle('active', mode !== 'light');
+  $('btnLight').classList.toggle('active', mode === 'light');
+}
+function toggleLang() {
+  localStorage.setItem('gz_lang', (localStorage.getItem('gz_lang') || 'zh-CN') === 'zh-CN' ? 'en' : 'zh-CN');
+  applyI18n();
+  renderList(); renderMcList(); updateMcBtn(); maybeShowRestore();
+}
+setTheme(localStorage.getItem('gz_theme') || 'dark');
+
+/* ---------- 本地记忆 ---------- */
 $('token').value = localStorage.getItem('gh_pat') || '';
 $('gzToken').value = localStorage.getItem('gz_token') || '';
+$('ref').value = localStorage.getItem('gh_ref') || 'main';
 $('repo').value = $('repo').value || guessRepo() || 'balugaq/sf-plugin-starting-tester';
+applyI18n();
 
 $('gzToken').addEventListener('change', () => {
   localStorage.setItem('gz_token', $('gzToken').value.trim());
+});
+$('ref').addEventListener('change', () => {
+  localStorage.setItem('gh_ref', $('ref').value.trim());
 });
 
 function guessRepo() {
@@ -322,20 +439,20 @@ function guessRepo() {
 }
 function repoPath() {
   const r = $('repo').value.trim() || guessRepo();
-  if (!r || !r.includes('/')) throw new Error('仓库标识无效，请填 owner/repo');
+  if (!r || !r.includes('/')) throw new Error(t('invalidRepo'));
   return r;
 }
 function ghHeaders() {
-  const t = $('token').value.trim();
-  if (!t) throw new Error('请先填 GitHub Token');
-  localStorage.setItem('gh_pat', t);
-  return { Authorization: `Bearer ${t}`, Accept: 'application/vnd.github+json' };
+  const t2 = $('token').value.trim();
+  if (!t2) throw new Error(t('needGhToken'));
+  localStorage.setItem('gh_pat', t2);
+  return { Authorization: `Bearer ${t2}`, Accept: 'application/vnd.github+json' };
 }
-/* 鬼斩资源站请求头：填了 Token 就带上（提高速率限制/访问需鉴权的接口），没填就匿名 */
+/* 鬼斩资源站请求头：填了 Token 就带上（提高速率限制），没填就匿名 */
 function gzHeaders(extra) {
   const h = Object.assign({}, extra);
-  const t = $('gzToken').value.trim();
-  if (t) h['Authorization'] = `Bearer ${t}`;
+  const t2 = $('gzToken').value.trim();
+  if (t2) h['Authorization'] = `Bearer ${t2}`;
   return h;
 }
 
@@ -346,7 +463,7 @@ const sel = new Set();
 async function loadCatalog(force) {
   const cached = CATALOG && !force && (Date.now() - CATALOG.fetchedAt < 3600e3);
   if (cached) { renderList(); return; }
-  $('list').innerHTML = '<span class="hint">加载目录中…</span>';
+  $('list').innerHTML = `<span class="hint">${esc(t('loading'))}</span>`;
   try {
     const first = await (await fetch(`${SITE}/projects?page_size=50&page=1`, { headers: gzHeaders() })).json();
     const total = first.pagination?.total_items ?? first.data.length;
@@ -359,7 +476,7 @@ async function loadCatalog(force) {
     localStorage.setItem('catalog', JSON.stringify(CATALOG));
     renderList();
   } catch (e) {
-    $('list').innerHTML = `<span class="err">目录加载失败: ${e.message}</span>`;
+    $('list').innerHTML = `<span class="err">${esc(t('loadFail', { m: e.message }))}</span>`;
   }
 }
 
@@ -367,104 +484,287 @@ function esc(s) {
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 function hi(text, q) {
-  const t = esc(text || '');
-  if (!q) return t;
+  const t2 = esc(text || '');
+  if (!q) return t2;
   try {
-    return t.replace(new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'ig'), '<mark>$1</mark>');
-  } catch { return t; }
+    return t2.replace(new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'ig'), '<mark>$1</mark>');
+  } catch { return t2; }
 }
 
 function renderList() {
-  const q = $('search').value.trim().toLowerCase();
+  const q = $('search')?.value.trim().toLowerCase() || '';
   const items = (CATALOG?.items || []).filter(p =>
     !q || p.name?.toLowerCase().includes(q) || p.slug.toLowerCase().includes(q) || p.summary?.toLowerCase().includes(q));
   const el = $('list');
-  if (!items.length) { el.innerHTML = '<span class="hint">无匹配项</span>'; $('selCount').textContent = `已选 ${sel.size} 个插件`; return; }
-  el.innerHTML = items.map(p => `
+  if (!items.length) { el.innerHTML = `<span class="hint">${esc(t('noMatch'))}</span>`; $('selCount').textContent = t('selCount', { n: sel.size }); return; }
+  el.innerHTML = items.map(p => {
+    const st = conflictState(p.slug);
+    const blocked = st && st.blockedBy;
+    return `
     <label class="item ${sel.has(p.slug) ? 'selected' : ''}">
-      <input type="checkbox" ${sel.has(p.slug) ? 'checked' : ''} onchange="toggleSel('${p.slug}', this.checked)">
+      <input type="checkbox" ${sel.has(p.slug) ? 'checked' : ''} ${blocked ? 'disabled' : ''} onchange="toggleSel('${p.slug}', this.checked)">
       <div class="body">
-        <div class="name"><b>${hi(p.name || p.slug, q)}</b> <span class="meta">@${esc(p.slug)} · ↓${p.downloads ?? 0}</span></div>
-        <div class="meta">${hi((p.summary || '').slice(0, 90), q)}</div>
+        <div class="name"><b>${hi(p.name || p.slug, q)}</b> <span class="meta">@${esc(p.slug)} · ${ICO_DL}${p.downloads ?? 0}</span></div>
+        <div class="meta">${hi((p.summary || '').slice(0, 90), q)}${blocked ? ` <span class="conflict-note">${esc(t('conflictWith', { s: st.blockedBy }))}</span>` : ''}</div>
       </div>
-    </label>`).join('');
-  $('selCount').textContent = `已选 ${sel.size} 个插件`;
+      ${blocked ? `<button class="conflict-btn" title="${esc(st.reason)}" onclick="event.preventDefault();unselectSlug('${st.blockedBy}')">${esc(t('conflictBtn', { s: st.blockedBy }))}</button>` : ''}
+    </label>`;
+  }).join('');
+  $('selCount').textContent = t('selCount', { n: sel.size });
 }
-function toggleSel(slug, on) { on ? sel.add(slug) : sel.delete(slug); renderList(); }
+function saveSelection() { localStorage.setItem('gz_selection', JSON.stringify([...sel])); }
+function toggleSel(slug, on) {
+  if (on) {
+    // 冲突守卫：包含关系二选一，对面已选就不允许再选
+    const st = conflictState(slug);
+    if (st && st.blockedBy) return;
+  }
+  on ? sel.add(slug) : sel.delete(slug);
+  saveSelection();
+  renderList();
+}
+function unselectSlug(slug) { sel.delete(slug); saveSelection(); renderList(); }
+function clearSelection() { sel.clear(); saveSelection(); renderList(); }
+
+/* ---------- 冲突规则（pages/conflicts.json）：contains 已包含 included，二者二选一 ---------- */
+let CONFLICTS = [];
+fetch('conflicts.json').then(r => r.ok ? r.json() : { conflicts: [] })
+  .then(d => { CONFLICTS = (d.conflicts || []).filter(r => r.contains && r.included); renderList(); })
+  .catch(() => {});
+
+const slugEq = (a, b) => a.toLowerCase() === b.toLowerCase();
+/* 返回该 slug 的冲突状态：blockedBy=对面已选，本项被禁；blocks=本项已选，禁了对面 */
+function conflictState(slug) {
+  for (const r of CONFLICTS) {
+    let other = null;
+    if (slugEq(slug, r.contains)) other = r.included;
+    else if (slugEq(slug, r.included)) other = r.contains;
+    if (!other) continue;
+    const otherSel = [...sel].some(s => slugEq(s, other));
+    const meSel = [...sel].some(s => slugEq(s, slug));
+    if (otherSel && !meSel) return { blockedBy: other, reason: r.reason };
+    if (meSel && !otherSel) return { blocks: other, reason: r.reason };
+  }
+  return null;
+}
+
+/* 上次选择的插件：本地有记录且当前未选任何东西时，提供一键恢复 */
+function maybeShowRestore() {
+  const saved = JSON.parse(localStorage.getItem('gz_selection') || '[]');
+  const b = $('restoreBtn');
+  if (saved.length && !sel.size) {
+    b.style.display = '';
+    b.textContent = t('restore', { n: saved.length });
+  } else { b.style.display = 'none'; }
+}
+function restoreSelection() {
+  const saved = JSON.parse(localStorage.getItem('gz_selection') || '[]');
+  saved.forEach(s => sel.add(s));
+  saveSelection();
+  renderList();
+  maybeShowRestore();
+}
+
+/* ---------- ② MC 版本多选下拉（版本列表来自 Paper REST API） ---------- */
+let MCGROUPS = [];   // [{label, versions}]
+const MCSEL = new Set(($('mcvers').value || '').split(',').map(s => s.trim()).filter(Boolean));
+
+async function loadMcVersions(force) {
+  const panel = $('mcList');
+  if (MCGROUPS.length && !force) { renderMcList(); return; }
+  panel.innerHTML = `<span class="hint">${esc(t('mcLoading'))}</span>`;
+  const platform = $('platform').value;
+  try {
+    const d = await (await fetch(`${FILL}/projects/${platform}`)).json();
+    const raw = d.versions || {};
+    MCGROUPS = Object.entries(raw)
+      .map(([label, versions]) => ({ label, versions }))
+      .filter(g => g.versions.length);
+    $('mcFallback').style.display = 'none';
+    $('mcSearch').style.display = '';
+    renderMcList();
+  } catch {
+    // API 挂了就降级成手动输入，不卡住用户
+    $('mcSearch').style.display = 'none';
+    $('mcFallback').style.display = '';
+    panel.innerHTML = '';
+  }
+}
+function renderMcList() {
+  if (!MCGROUPS.length) return;
+  const q = $('mcSearch').value.trim().toLowerCase();
+  $('mcList').innerHTML = MCGROUPS.map(g => {
+    const vers = g.versions.filter(v => !q || v.toLowerCase().includes(q));
+    if (!vers.length) return '';
+    return `<div class="grp">${esc(g.label)}</div>` + vers.map(v => `
+      <label class="opt"><input type="checkbox" ${MCSEL.has(v) ? 'checked' : ''} onchange="toggleMcVer('${v}', this.checked)">
+        ${hi(v, q)}</label>`).join('');
+  }).join('') || `<span class="hint">${esc(t('noMatch'))}</span>`;
+}
+function toggleMcVer(v, on) { on ? MCSEL.add(v) : MCSEL.delete(v); syncMcValue(); renderMcList(); }
+function syncMcValue() {
+  $('mcvers').value = [...MCSEL].join(',');
+  updateMcBtn();
+}
+function updateMcBtn() {
+  const a = [...MCSEL];
+  $('mcBtnText').textContent = a.length
+    ? (a.length <= 3 ? a.join(', ') : `${a.slice(0, 3).join(', ')} +${a.length - 3}`)
+    : t('mcNone');
+}
+function toggleMcPanel() {
+  const open = $('mcSel').classList.toggle('open');
+  if (open) loadMcVersions(false);
+}
+/* 点外面收起下拉 */
+document.addEventListener('click', e => {
+  if (!$('mcSel').contains(e.target)) $('mcSel').classList.remove('open');
+});
 
 /* ---------- ② 确认与触发 ---------- */
 function openConfirm() {
-  if (!sel.size) { alert('请先勾选至少一个插件'); return; }
+  if (!sel.size) { alert(t('selNone')); return; }
   const mc = $('mcvers').value.trim();
-  if (!mc) { alert('请填 MC 版本'); return; }
+  if (!mc) { alert(t('mcNone')); return; }
   const slugs = [...sel];
+  const jars = $('extrajars').value.split(/\n+/).map(s => s.trim()).filter(Boolean);
   $('confirmBody').innerHTML = `
-    <p>一次开服同时测试 <b>${slugs.length}</b> 个插件，MC 版本 <b>${esc(mc)}</b>，平台 <b>${esc($('platform').value)}</b>。</p>
+    <p>${t('confirmBody', { n: slugs.length, mc: esc(mc), pf: esc($('platform').value) })}</p>
+    ${jars.length ? `<p class="hint">${esc(t('jarsNote', { n: jars.length }))}</p>` : ''}
     <ul>${slugs.map(s => `<li>${esc(s)}</li>`).join('')}</ul>
-    <p class="hint">插件多时启动时间长，超时已按参数设置（${esc($('timeout').value)}s）。若个别插件依赖互相冲突，整批可能受影响，建议分批测试。</p>`;
+    <p class="hint">${esc(t('confirmHint', { t: esc($('timeout').value) }))}</p>`;
   $('goMsg').textContent = '';
   $('mask').classList.add('show');
+}
+
+/* 校验仓库与分支真实存在，返回确认后的分支名 */
+async function validateTarget() {
+  const repo = repoPath();
+  const ref = $('ref').value.trim() || 'main';
+  let res = await fetch(`${GH}/repos/${repo}`, { headers: ghHeaders() });
+  if (res.status === 404) throw new Error(t('repoNotExist', { r: repo }));
+  if (!res.ok) throw new Error(t('apiErr', { s: res.status, w: t('repoCheck') }));
+  res = await fetch(`${GH}/repos/${repo}/branches/${encodeURIComponent(ref)}`, { headers: ghHeaders() });
+  if (res.status === 404) throw new Error(t('branchNotExist', { b: ref, r: repo }));
+  if (!res.ok) throw new Error(t('apiErr', { s: res.status, w: t('branchCheck') }));
+  return ref;
 }
 
 async function startBatch() {
   const go = $('goMsg'), btn = $('goBtn');
   btn.disabled = true;
   try {
+    // 双 Token 必填：GitHub Token 触发 workflow，鬼斩 Token 请求资源站
+    if (!$('token').value.trim()) throw new Error(t('needGhToken'));
+    if (!$('gzToken').value.trim()) throw new Error(t('needGzToken'));
+    // 超时范围：最长 2 小时
+    const to = parseInt($('timeout').value, 10);
+    if (!Number.isFinite(to) || String(to) !== $('timeout').value.trim() || to < 1 || to > 7200)
+      throw new Error(t('timeoutRange'));
+    // 仓库 / 分支存在性校验
+    const ref = await validateTarget();
+    localStorage.setItem('gh_ref', ref);
+    // 首次开服：先弹用户协议
+    if (!localStorage.getItem('ua_accepted')) {
+      $('uaCheck').checked = false;
+      $('mask').classList.remove('show');
+      $('uaMask').classList.add('show');
+      return;
+    }
+    await doDispatch(ref);
+  } catch (e) {
+    go.textContent = t('errPrefix', { m: e.message }); go.className = 'msg err';
+  } finally { btn.disabled = false; }
+}
+
+async function doDispatch(ref) {
+  const go = $('goMsg'), btn = $('goBtn');
+  btn.disabled = true;
+  try {
     const res = await fetch(`${GH}/repos/${repoPath()}/actions/workflows/${WF}/dispatches`, {
       method: 'POST', headers: ghHeaders(),
       body: JSON.stringify({
-        ref: $('ref').value.trim() || 'main',
+        ref,
         inputs: {
           plugin_slugs: [...sel].join(','),
           plugin_version: $('ver').value.trim(),
           minecraft_versions: $('mcvers').value.trim(),
           platform: $('platform').value,
-          softdepend_plugins: $('softdep').value.trim(),
-          extra_jars: '',
-          start_timeout: $('timeout').value.trim() || '900',
+          extra_jars: $('extrajars').value.split(/\n+/).map(s => s.trim()).filter(Boolean).join(','),
+          start_timeout: String(parseInt($('timeout').value, 10) || 900),
         }
       })
     });
     if (res.status !== 204) throw new Error(`HTTP ${res.status} ${(await res.text()).slice(0, 200)}`);
-    go.textContent = '✅ 已触发！等待开服测试完成（下方记录 20 秒自动刷新）。';
+    go.textContent = t('triggered');
     go.className = 'msg';
     $('mask').classList.remove('show');
     loadResults();
   } catch (e) {
-    go.textContent = `✘ 触发失败: ${e.message}`; go.className = 'msg err';
+    go.textContent = t('dispatchFail', { m: e.message }); go.className = 'msg err';
   } finally { btn.disabled = false; }
 }
 
+function acceptUA() {
+  if (!$('uaCheck').checked) { alert(t('uaAlert')); return; }
+  localStorage.setItem('ua_accepted', '1');
+  $('uaMask').classList.remove('show');
+  $('goMsg').textContent = '';
+  startBatch();
+}
+
 /* ---------- ③ 测试记录 ---------- */
+/* results.json 由最近一次测试随 Pages 部署，用于把「流程成功但有插件失败」标成部分完成 */
+async function loadResultsSummary() {
+  const [owner, name] = repoPath().split('/');
+  try {
+    const res = await fetch(`https://${owner}.github.io/${name}/results.json?_=${Date.now()}`);
+    return res.ok ? await res.json() : null;
+  } catch { return null; }
+}
+
 async function loadResults() {
   const tbody = $('results');
   try {
     const res = await fetch(`${GH}/repos/${repoPath()}/actions/workflows/${WF}/runs?per_page=15`, { headers: ghHeaders() });
-    if (!res.ok) throw new Error(`GitHub API ${res.status}`);
+    if (!res.ok) throw new Error(t('apiErr', { s: res.status, w: t('repoCheck') }));
     const runs = (await res.json()).workflow_runs;
+    const latestDone = runs.find(r => r.status === 'completed');
+    // 只有最近一次成功运行的报告部署在 Pages，只有它做部分完成判定
+    let SUM = null;
+    if (latestDone && latestDone.conclusion === 'success') SUM = await loadResultsSummary();
     let html = '';
     for (const r of runs) {
-      const badge = r.status === 'completed'
-        ? `<span class="badge ${r.conclusion === 'success' ? 'ok' : 'fail'}">${r.conclusion === 'success' ? '✔ 完成' : '✘ 失败'}</span>`
-        : `<span class="badge ${r.status === 'queued' ? 'queue' : 'run'}">${r.status === 'queued' ? '⏳ 排队' : '🟡 运行中'}</span>`;
-      const report = r.status === 'completed'
-        ? `<a href="https://${repoPath().split('/')[0]}.github.io/${repoPath().split('/')[1]}/report.html" target="_blank">报告</a>`
-        : '';
+      let badge;
+      if (r.status !== 'completed') {
+        badge = `<span class="badge ${r.status === 'queued' ? 'queue' : 'run'}">${esc(t(r.status === 'queued' ? 'badgeQueue' : 'badgeRun'))}</span>`;
+      } else if (r.conclusion !== 'success') {
+        badge = `<span class="badge fail">${esc(t('badgeFail'))}</span>`;
+      } else if (r === latestDone && SUM && SUM.total > 0 && SUM.passed < SUM.total) {
+        badge = `<span class="badge partial">${esc(t('badgePartial', { p: SUM.passed, t: SUM.total }))}</span>`;
+      } else if (r === latestDone && SUM && SUM.total > 0) {
+        badge = `<span class="badge ok">${esc(t('badgeAll', { p: SUM.passed, t: SUM.total }))}</span>`;
+      } else {
+        badge = `<span class="badge ok">${esc(t('badgeDone'))}</span>`;
+      }
       html += `<tr>
         <td class="col-time">${new Date(r.created_at).toLocaleString('zh-CN', { hour12: false })}</td>
         <td class="col-run">#${r.run_number}</td>
-        <td class="col-status">${badge}<a href="${r.html_url}" target="_blank">日志</a>${report}</td>
+        <td class="col-status">${badge}<a href="${r.html_url}" target="_blank">${esc(t('logs'))}</a></td>
       </tr>`;
     }
-    tbody.innerHTML = html || '<tr><td colspan="3" class="hint">还没有运行记录</td></tr>';
+    tbody.innerHTML = html || `<tr><td colspan="3" class="hint">${esc(t('noRuns'))}</td></tr>`;
   } catch (e) {
-    tbody.innerHTML = `<tr><td colspan="3" class="err">${e.message}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="3" class="err">${esc(e.message)}</td></tr>`;
   }
   clearTimeout(loadResults._t);
   loadResults._t = setTimeout(loadResults, 20000);
 }
 
 if ($('token').value.trim()) { loadCatalog(); loadResults(); }
+maybeShowRestore();
+updateMcBtn();
+loadMcVersions(false);
 </script>
 </body>
 </html>

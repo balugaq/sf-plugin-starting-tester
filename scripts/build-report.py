@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""汇总所有 result-*.json（批量格式），生成单页 HTML 测试报告 report.html。"""
+"""汇总所有 result-*.json（批量格式），生成单页 HTML 测试报告 report.html 与机器可读的 results.json（供控制台判定部分完成）。"""
 import glob
 import html
 import json
+from datetime import datetime, timezone
 
 batches = []
 for path in sorted(glob.glob("results/result-*.json")):
@@ -76,4 +77,26 @@ out = f"""<!DOCTYPE html>
 
 with open("report.html", "w", encoding="utf-8") as f:
     f.write(out)
+
+# 机器可读摘要，控制台读取它把「流程成功但有插件失败」显示为部分完成
+summary = {
+    "generated_at": datetime.now(timezone.utc).isoformat(),
+    "passed": grand_pass,
+    "total": grand_total,
+    "batches": [
+        {
+            "mc_version": b.get("mc_version", "?"),
+            "platform": b.get("platform", "?"),
+            "passed": b.get("passed", 0),
+            "total": b.get("total", 0),
+            "results": [
+                {"slug": r.get("slug", "?"), "name": r.get("name", "?"), "status": r.get("status", "?")}
+                for r in b.get("results", [])
+            ],
+        }
+        for b in batches
+    ],
+}
+with open("results.json", "w", encoding="utf-8") as f:
+    json.dump(summary, f, ensure_ascii=False)
 print(f"report.html 已生成: {grand_pass}/{grand_total} 通过")

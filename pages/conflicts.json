@@ -1,0 +1,15 @@
+{
+  "_comment": "插件冲突规则（控制台勾选时强制二选一）。contains=包含方 slug，included=被包含方 slug，reason=展示给用户的理由；slug 不区分大小写匹配；未来拓展按同样结构追加条目即可。",
+  "conflicts": [
+    {
+      "contains": "NetworksExpansion",
+      "included": "Networks",
+      "reason": "NetworksExpansion 已经包含 Networks"
+    },
+    {
+      "contains": "ExoticGardenComplex",
+      "included": "ExoticGarden",
+      "reason": "ExoticGardenComplex 已经包含 ExoticGarden"
+    }
+  ]
+}

@@ -1,0 +1,124 @@
+/* 控制台多语言文本：新增语言时加一个 key 相同的字典即可。
+   文本里有 {x} 占位符的，由 t(key, {x: val}) 填充。 */
+window.I18N = {
+  'zh-CN': {
+    title: '🧪 插件兼容性测试控制台',
+    sub: '从鬼斩资源站勾选附属（支持批量上百个），一次开服同时测试所有插件的启动兼容性。仅覆盖启动阶段判定。',
+    ghToken: '🔑 GitHub Token', ghTokenPh: 'github_pat_...',
+    gzToken: '🍬 鬼斩 Token', gzTokenPh: '必填，资源站个人 Token',
+    tokenHelpHtml: '首次使用需要 fine-grained PAT：仅勾选本仓库的 <b>Actions: Read and write</b>，在 <a href="https://github.com/settings/personal-access-tokens/new" target="_blank">GitHub Token 设置</a> 生成。Token 只存浏览器 localStorage。',
+    gzTipHtml: '鬼斩资源站的<b>个人 API Token</b>，在 <a href="https://resources.guizhanss.com/settings/tokens" target="_blank">资源站 → 设置 → Token</a> 页面生成。<br><b>必填</b>：开服测试需要请求资源站 API，填写后可提高请求速率限制，Token 只存浏览器 localStorage。',
+    step1: '选择插件', refresh: '刷新目录', searchPh: '🔍 搜索名称 / 简介…',
+    saveHint: '💡 建议仅测试真正需要的插件/版本，避免资源浪费。',
+    loadingCatalog: '填好 GitHub Token 后自动加载目录', loading: '加载目录中…',
+    loadFail: '目录加载失败: {m}', noMatch: '无匹配项',
+    selCount: '已选 {n} 个插件', restore: '↺ 恢复上次选择 ({n})', clear: '清空', startBtn: '开始测试 ▶',
+    step2: '测试参数',
+    repoLabel: '仓库（owner/repo）*', refLabel: '分支',
+    verLabel: '插件版本（全部应用，留空=最新）', verPh: '留空',
+    platformLabel: '服务端平台',
+    mcLabel: 'MC 版本（多选，每个版本一次开服）*', mcSearchPh: '🔍 搜索版本…',
+    mcLoading: '加载版本列表中…', mcLoadFail: '版本列表加载失败，可手动输入（逗号分隔）',
+    mcFallbackPh: '1.21.4, 26.2（逗号分隔）',
+    timeoutLabel: '开服超时秒数（1–7200，最长 2 小时）',
+    jarsLabel: '外部 jar 下载链接（每行一个，开服时自动下载）', jarsPh: 'https://example.com/SomePlugin.jar',
+    step3: '测试记录', refreshRec: '刷新',
+    recordsHint: '每个 MC 版本对应一条记录；HTML 报告（每个插件的 ✔/✘ 与报错）部署在 Pages 的 report.html，随最近一次测试更新。',
+    waitResults: '等待触发测试后显示', noRuns: '还没有运行记录',
+    badgeQueue: '⏳ 排队', badgeRun: '🟡 运行中', badgeFail: '✘ 失败',
+    badgePartial: '◐ 部分完成 {p}/{t}', badgeAll: '✔ 全部通过 {p}/{t}', badgeDone: '✔ 完成',
+    logs: '日志',
+    confirmTitle: '确认开始测试',
+    confirmBody: '一次开服同时测试 <b>{n}</b> 个插件，MC 版本 <b>{mc}</b>，平台 <b>{pf}</b>。',
+    jarsNote: '外部 jar {n} 个将自动下载。',
+    confirmHint: '插件多时启动时间长，超时已按参数设置（{t}s）。若个别插件依赖互相冲突，整批可能受影响，建议分批测试。',
+    cancel: '取消', goBtn: '🚀 正式开始',
+    triggered: '✅ 已触发！等待开服测试完成（下方记录 20 秒自动刷新）。',
+    dispatchFail: '✘ 触发失败: {m}', errPrefix: '✘ {m}',
+    uaTitle: '用户协议', uaIntro: '首次开服前，请阅读并同意以下协议：',
+    uaClause1: '一、本项目仅为开源分享目的，以 MIT 协议开源，作者为 balugaq，项目初衷为构建完善的粘液附属可运行版本数据，如被恶意利用，与作者无关。',
+    uaClause2: '二、使用者使用此项目开服，则视为已经完全阅读并认可此用户协议、<a href="https://policies.guizhanss.com/resources/terms" target="_blank">鬼斩资源站附加服务条款</a>、<a href="https://policies.guizhanss.com/privacy" target="_blank">鬼斩资源站隐私政策</a>、<a href="https://www.minecraft.net/en-us/eula" target="_blank">Minecraft 最终用户协议</a>。因违反任一协议造成的责任或后果，由使用者承担，与原作者无关。',
+    uaCheck: '我已阅读并同意上述协议', uaAgree: '同意并继续',
+    uaAlert: '请先勾选「我已阅读并同意上述协议」',
+    needGhToken: '请填写 GitHub Token（触发 workflow 必需）',
+    needGzToken: '请填写鬼斩 Token（开服测试需请求资源站 API）',
+    timeoutRange: '开服超时秒数须为 1–7200 的整数（最长 2 小时）',
+    repoNotExist: '仓库不存在: {r}（检查 owner/repo 是否正确，或 Token 是否有该仓库权限）',
+    branchNotExist: '分支不存在: {b}（仓库 {r} 下没有这个分支）',
+    apiErr: 'GitHub API {s}（{w}）', repoCheck: '校验仓库', branchCheck: '校验分支',
+    invalidRepo: '仓库标识无效，请填 owner/repo',
+    selNone: '请先勾选至少一个插件', mcNone: '请选择至少一个 MC 版本',
+    themeDark: '夜间', themeLight: '日间', langBtn: 'EN',
+    colTime: '时间', colRun: '运行', colStatus: '状态 & 操作',
+    conflictBtn: '✕ 取消选择 {s}', conflictWith: '与 {s} 冲突'
+  },
+  'en': {
+    title: '🧪 Plugin Compatibility Test Console',
+    sub: 'Pick add-ons from the Guizhan resource site (hundreds at once) and test all of their startup compatibility in a single server launch. Startup phase only.',
+    ghToken: '🔑 GitHub Token', ghTokenPh: 'github_pat_...',
+    gzToken: '🍬 Guizhan Token', gzTokenPh: 'Required, personal site token',
+    tokenHelpHtml: 'A fine-grained PAT is required on first use: grant only <b>Actions: Read and write</b> for this repo, create it at <a href="https://github.com/settings/personal-access-tokens/new" target="_blank">GitHub Token settings</a>. Stored only in browser localStorage.',
+    gzTipHtml: 'Your <b>personal API token</b> of the Guizhan resource site, created at <a href="https://resources.guizhanss.com/settings/tokens" target="_blank">Site → Settings → Tokens</a>.<br><b>Required</b>: launching tests needs the site API; it also raises your rate limit. Stored only in browser localStorage.',
+    step1: 'Select plugins', refresh: 'Refresh', searchPh: '🔍 Search name / summary…',
+    saveHint: '💡 Only test the plugins/versions you actually need to save resources.',
+    loadingCatalog: 'Catalog loads automatically once GitHub Token is set', loading: 'Loading catalog…',
+    loadFail: 'Catalog load failed: {m}', noMatch: 'No match',
+    selCount: '{n} plugin(s) selected', restore: '↺ Restore last selection ({n})', clear: 'Clear', startBtn: 'Start test ▶',
+    step2: 'Test settings',
+    repoLabel: 'Repository (owner/repo) *', refLabel: 'Branch',
+    verLabel: 'Plugin version (applied to all, empty = latest)', verPh: 'empty',
+    platformLabel: 'Server platform',
+    mcLabel: 'MC versions (multi-select, one launch per version) *', mcSearchPh: '🔍 Search versions…',
+    mcLoading: 'Loading version list…', mcLoadFail: 'Version list failed to load; type manually (comma separated)',
+    mcFallbackPh: '1.21.4, 26.2 (comma separated)',
+    timeoutLabel: 'Startup timeout in seconds (1–7200, max 2 hours)',
+    jarsLabel: 'External jar URLs (one per line, auto-downloaded on launch)', jarsPh: 'https://example.com/SomePlugin.jar',
+    step3: 'Test history', refreshRec: 'Refresh',
+    recordsHint: 'One record per MC version; the HTML report (✔/✘ per plugin with errors) is deployed to Pages report.html and updated with the latest test.',
+    waitResults: 'Shown after a test is triggered', noRuns: 'No runs yet',
+    badgeQueue: '⏳ Queued', badgeRun: '🟡 Running', badgeFail: '✘ Failed',
+    badgePartial: '◐ Partial {p}/{t}', badgeAll: '✔ All passed {p}/{t}', badgeDone: '✔ Done',
+    logs: 'Logs',
+    confirmTitle: 'Confirm test',
+    confirmBody: 'Testing <b>{n}</b> plugin(s) in one server launch, MC <b>{mc}</b>, platform <b>{pf}</b>.',
+    jarsNote: '{n} external jar(s) will be downloaded.',
+    confirmHint: 'Many plugins take longer to start; timeout is set to {t}s. Conflicting dependencies may affect the whole batch — splitting into batches is recommended.',
+    cancel: 'Cancel', goBtn: '🚀 Start',
+    triggered: '✅ Triggered! Wait for the test to finish (history refreshes every 20s).',
+    dispatchFail: '✘ Trigger failed: {m}', errPrefix: '✘ {m}',
+    uaTitle: 'Terms of Use', uaIntro: 'Before the first launch, please read and accept:',
+    uaClause1: '1. This project is open-sourced under the MIT license for sharing purposes, authored by balugaq, aiming to build reliable data on runnable Slimefun add-on versions. The author is not responsible for any malicious use.',
+    uaClause2: '2. By launching a server with this project you are deemed to have fully read and accepted these terms, the <a href="https://policies.guizhanss.com/resources/terms" target="_blank">Guizhan resource site terms</a>, the <a href="https://policies.guizhanss.com/privacy" target="_blank">Guizhan privacy policy</a>, and the <a href="https://www.minecraft.net/en-us/eula" target="_blank">Minecraft EULA</a>. Liability from violating any of them lies with the user, not the original author.',
+    uaCheck: 'I have read and accept the terms above', uaAgree: 'Accept & continue',
+    uaAlert: 'Please check "I have read and accept the terms above" first',
+    needGhToken: 'Please fill in the GitHub Token (required to trigger the workflow)',
+    needGzToken: 'Please fill in the Guizhan Token (the test needs the site API)',
+    timeoutRange: 'Startup timeout must be an integer between 1 and 7200 (max 2 hours)',
+    repoNotExist: 'Repository not found: {r} (check owner/repo and the token permissions)',
+    branchNotExist: 'Branch not found: {b} (repository {r} has no such branch)',
+    apiErr: 'GitHub API {s} ({w})', repoCheck: 'validating repo', branchCheck: 'validating branch',
+    invalidRepo: 'Invalid repository, use owner/repo',
+    selNone: 'Select at least one plugin', mcNone: 'Select at least one MC version',
+    themeDark: 'Dark', themeLight: 'Light', langBtn: '中文',
+    colTime: 'Time', colRun: 'Run', colStatus: 'Status & actions',
+    conflictBtn: '✕ Unselect {s}', conflictWith: 'conflicts with {s}'
+  }
+};
+
+window.t = function (key, vars) {
+  const lang = localStorage.getItem('gz_lang') || 'zh-CN';
+  let s = (window.I18N[lang] && window.I18N[lang][key]) ?? window.I18N['zh-CN'][key] ?? key;
+  if (vars) for (const [k, v] of Object.entries(vars)) s = s.replaceAll(`{${k}}`, v);
+  return s;
+};
+
+/* 扫描 data-i18n / data-i18n-html / data-i18n-ph 并应用当前语言 */
+window.applyI18n = function () {
+  const lang = localStorage.getItem('gz_lang') || 'zh-CN';
+  document.documentElement.lang = lang === 'en' ? 'en' : 'zh-CN';
+  document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
+  document.querySelectorAll('[data-i18n-html]').forEach(el => { el.innerHTML = t(el.dataset.i18nHtml); });
+  document.querySelectorAll('[data-i18n-ph]').forEach(el => { el.placeholder = t(el.dataset.i18nPh); });
+  const btn = document.getElementById('btnLang');
+  if (btn) btn.textContent = t('langBtn');
+};

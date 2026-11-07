@@ -154,7 +154,10 @@ jobs:
         run: |
           mkdir -p _site
           cp pages/index.html _site/index.html
+          cp pages/i18n.js _site/i18n.js
+          cp pages/conflicts.json _site/conflicts.json
           cp report.html _site/report.html
+          cp results.json _site/results.json 2>/dev/null || true
 
       - name: 上传 Pages 产物
         uses: actions/upload-pages-artifact@v5

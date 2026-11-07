@@ -48,6 +48,8 @@ Minecraft 版本迭代快且碎片化，而粘液（Slimefun）附属的更新�
 7. 点击运行。等待运行完成后，可在你仓库的 **GitHub Actions** 中查看 workflow 运行结果；测试结果在 **Artifacts** 下的 **`compatibility-report`** 中。
 
 > 补充：依赖的依赖等特殊 jar 可提交到 fork 仓库的 `extra-plugins/` 目录（会原样拷入服务端 `plugins/`）；软依赖（softdepend）默认不装，`GuizhanLibPlugin` 例外——它是必装前置，会自动安装。Token 只存浏览器 localStorage，不经过任何第三方。
+>
+> **提示**：你可能会遇到 GitHub Actions 被自动关闭的情况，这是 GitHub 对 fork 仓库的正常扫描行为，只需到仓库的 **Actions** 页面重新开启即可。
 
 ## 开源协议
 
