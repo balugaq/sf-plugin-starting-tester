@@ -3,6 +3,8 @@
 # 依赖的依赖不递归装，用户可把 jar 放进仓库 extra-plugins/ 目录自行补充。
 # 用法: resolve-plugin.sh <slug> [version]
 # 环境变量: SOFTDEPEND_INSTALL（逗号分隔的 softdepend 插件名，选装）
+# 名字映射不做任何硬编码：全站目录做候选，下载后以 plugin.yml 的真实 name 验证，
+# 确认过的 依赖名→slug 映射缓存在 plugins/.name_map.json，随使用越来越全。
 set -euo pipefail
 
 API="https://resources.guizhanss.com/api/v1"
@@ -16,10 +18,6 @@ api() {
   else
     curl -sf "$API$1"
   fi
-}
-
-urlenc() {
-  python3 -c "import urllib.parse,sys;print(urllib.parse.quote(sys.argv[1]))" "$1"
 }
 
 #   /projects/{slug}          → data 为平铺对象
@@ -43,13 +41,6 @@ download_version() {
         || { echo "sha256 校验失败: $fname"; exit 1; }
     fi
   done
-}
-
-resolve_project() {
-  # 按名称或 slug 搜资源站（name 与 slug 可能不同：GuizhanLibPlugin 的 name 是 GuizhanLib）
-  local name="$1"
-  api "/projects?q=$(urlenc "$name")&page_size=5" \
-    | jq -r --arg n "$name" '.data[]? | select(.slug == $n or .name == $n) | .slug' | head -1
 }
 
 download_plugin() {
@@ -106,20 +97,88 @@ for line in sys.stdin:
 print('\n'.join(dict.fromkeys(out)))" "$1" | tr -d '\r'
 }
 
+# ---- 全站目录：一次拉取所有项目（slug + 站内 name），缓存复用，不硬编码任何别名 ----
+CATALOG_FILE="$OUT_DIR/.catalog.json"
+
+fetch_catalog() {
+  [ -s "$CATALOG_FILE" ] && return 0
+  echo "拉取资源站全量目录…"
+  local first total pages p
+  first=$(api "/projects?page_size=50&page=1")
+  total=$(echo "$first" | jq -r '.pagination.total_items // (.data | length)')
+  pages=$(( (total + 49) / 50 ))
+  {
+    echo "$first" | jq -c '.data[]?'
+    for ((p=2; p<=pages; p++)); do
+      api "/projects?page_size=50&page=$p" | jq -c '.data[]?' || true
+    done
+  } | jq -c '{slug, name, downloads}' > "$CATALOG_FILE"
+  echo "目录共 $(wc -l < "$CATALOG_FILE") 个项目"
+}
+
+# ---- 依赖名→slug 映射缓存（来源全部是 plugin.yml 实名验证的结果）----
+NAME_MAP="$OUT_DIR/.name_map.json"
+[ -f "$NAME_MAP" ] || echo "{}" > "$NAME_MAP"
+map_get() { jq -r --arg k "$1" '.[$k] // empty' "$NAME_MAP"; }
+map_put() { jq --arg k "$1" --arg v "$2" '.[$k]=$v' "$NAME_MAP" > "$NAME_MAP.tmp" && mv "$NAME_MAP.tmp" "$NAME_MAP"; }
+
+# 依赖名 → 资源站候选 slug 列表（每行一个）：
+# 先精确匹配 slug/name；无命中再按前缀模糊（如依赖 Slimefun → 项目 Slimefun4），
+# 模糊候选按下载量排序，最终以 plugin.yml 实名验证兜底，不会误装
+dep_candidates() {
+  local dep="$1" d
+  d=$(echo "$dep" | tr '[:upper:]' '[:lower:]')
+  local exact
+  # 目录是逐行 JSONL，必须 -s slurp 成数组再过滤
+  exact=$(jq -s -r --arg d "$d" '[.[] | select((.slug | ascii_downcase) == $d or ((.name // "") | ascii_downcase) == $d)] | .[].slug' "$CATALOG_FILE")
+  if [ -n "$exact" ]; then echo "$exact"; return 0; fi
+  jq -s -r --arg d "$d" '[.[] | select((.slug | ascii_downcase | startswith($d)) or ((.name // "") | ascii_downcase | startswith($d)))] | sort_by(-(.downloads // 0)) | .[].slug' "$CATALOG_FILE" | head -5
+}
+
+# 从 jar 里取 plugin.yml 的真实 name（去掉引号、\r 与首尾空格）
+read_jar_name() {
+  unzip -p "$1" plugin.yml 2>/dev/null \
+    | awk -F: '/^name:/{gsub(/["'"'"']/,"",$2); gsub(/^[ \t]+|[ \t]+$/,"",$2); gsub(/\r/,"",$2); print $2; exit}'
+}
+
 download_dep() {
   local dep="$1"
-  echo "下载依赖: $dep"
-  # plugin.yml 里的名字与资源站 slug 不一致时的别名映射
-  case "$dep" in
-    Slimefun) download_plugin "Slimefun4"; return 0 ;;
-  esac
-  local dep_slug
-  dep_slug=$(resolve_project "$dep")
-  if [ -z "$dep_slug" ]; then
-    echo "警告: 资源站找不到 $dep（可能导致假失败，可放入 extra-plugins/ 自行补充）"
-    return 0
+
+  # 命中过验证的映射直接复用
+  local cached
+  cached=$(map_get "$dep")
+  if [ -n "$cached" ]; then
+    echo "下载依赖: $dep（映射 → $cached）"
+    download_plugin "$cached" && return 0
   fi
-  download_plugin "$dep_slug"
+
+  fetch_catalog
+  echo "下载依赖: $dep"
+  local slug
+  while IFS= read -r slug; do
+    [ -z "$slug" ] && continue
+    touch "$OUT_DIR/.dep_marker"
+    if ! download_plugin "$slug"; then continue; fi
+    # 用 plugin.yml 的真实名字验证：与依赖名完全一致才认可
+    local ok=""
+    while IFS= read -r cand; do
+      [ "$cand" -nt "$OUT_DIR/.dep_marker" ] || continue
+      [ "$(read_jar_name "$cand")" = "$dep" ] && ok=1
+    done < <(ls -t "$OUT_DIR"/*.jar 2>/dev/null)
+    if [ -n "$ok" ]; then
+      echo "确认映射: $dep → $slug"
+      map_put "$dep" "$slug"
+      return 0
+    fi
+    # 名字对不上：删掉这次新下载的 jar，换下一个候选
+    echo "候选 $slug 的 plugin.yml name 与 $dep 不符，弃用"
+    while IFS= read -r cand; do
+      [ "$cand" -nt "$OUT_DIR/.dep_marker" ] && rm -f "$cand"
+    done < <(ls -t "$OUT_DIR"/*.jar 2>/dev/null)
+  done < <(dep_candidates "$dep")
+
+  echo "警告: 资源站找不到 $dep（可能导致假失败，可放入 extra-plugins/ 自行补充）"
+  return 0
 }
 
 # ---- 主流程：批量模式，逗号分隔多个 slug，一次开服全部测 ----
@@ -132,9 +191,8 @@ echo "[]" > "$MANIFEST"
 for SLUG in $(echo "$SLUGS" | tr ',' ' '); do
   [ -z "$SLUG" ] && continue
   echo "===== $SLUG ====="
-  BEFORE=$(ls "$OUT_DIR" 2>/dev/null | grep -c '\.jar$' || true)
-  # 只在本 slug 新下载的 jar 里选（排除依赖/先前插件的 jar），jar 名带空格必须按行读
-  ls "$OUT_DIR"/*.jar > "$OUT_DIR/.pre_list" 2>/dev/null || true
+  # 只选本 slug 本次下载涉及的 jar：与 marker 比 mtime（依赖同名覆盖会让按路径比对漏判）
+  touch "$OUT_DIR/.marker"
   if ! download_plugin "$SLUG" "${2:-}"; then
     # 记录下载失败，报告里如实展示
     jq --arg s "$SLUG" '. + [{slug:$s, name:$s, jar:null, downloaded:false}]' "$MANIFEST" > "$MANIFEST.tmp" && mv "$MANIFEST.tmp" "$MANIFEST"
@@ -144,7 +202,7 @@ for SLUG in $(echo "$SLUGS" | tr ',' ' '); do
   # jar 名普遍带空格，必须按行读不能按词拆
   JAR=""
   while IFS= read -r cand; do
-    grep -qxF "$cand" "$OUT_DIR/.pre_list" && continue
+    [ "$cand" -nt "$OUT_DIR/.marker" ] || continue
     if unzip -l "$cand" plugin.yml >/dev/null 2>&1; then JAR="$cand"; break; fi
     # 打出 unzip 的报错，方便在 CI 日志里诊断瞬时下载异常
     unzip -l "$cand" plugin.yml 2>&1 | head -2 || true
@@ -154,7 +212,7 @@ for SLUG in $(echo "$SLUGS" | tr ',' ' '); do
     echo "警告: $SLUG 下载的 jar 均无 plugin.yml，跳过依赖解析"
     continue
   fi
-  PNAME=$(unzip -p "$JAR" plugin.yml 2>/dev/null | awk '/^name:/{print $2}' | tr -d '\r')
+  PNAME=$(read_jar_name "$JAR")
   jq --arg s "$SLUG" --arg n "${PNAME:-$SLUG}" --arg j "$(basename "$JAR")" \
     '. + [{slug:$s, name:$n, jar:$j, downloaded:true}]' "$MANIFEST" > "$MANIFEST.tmp" && mv "$MANIFEST.tmp" "$MANIFEST"
 
@@ -200,4 +258,6 @@ if [ -d extra-plugins ]; then
 fi
 
 echo "最终插件清单: $(ls "$OUT_DIR"/*.jar | wc -l) 个 jar"
+echo "已确认的名字映射:"
+jq -r 'to_entries[] | "  \(.key) -> \(.value)"' "$NAME_MAP" || true
 jq -r '.[] | "\(.slug) -> \(.name)"' "$MANIFEST" || true

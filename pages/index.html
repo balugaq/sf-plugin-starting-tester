@@ -5,133 +5,300 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>插件兼容性测试控制台</title>
 <style>
-  :root { color-scheme: dark; }
+  :root {
+    color-scheme: dark;
+    --bg-1: #11151c; --bg-2: #1a1f29; --bg-3: #202838;
+    --border: #2c3442; --border-strong: #3a4353;
+    --text-1: #e6e6e6; --text-2: #9ab; --text-3: #778;
+    --accent: #2d6cdf; --accent-hover: #3d7cf0;
+    --ok: #0a7d32; --fail: #c62828; --run: #b58a2c;
+    --radius: 10px;
+  }
   * { box-sizing: border-box; }
-  body { font-family: system-ui, sans-serif; background: #11151c; color: #e6e6e6;
-         max-width: 960px; margin: 0 auto; padding: 1.5rem 1rem 5rem; }
-  h1 { font-size: 1.3rem; }
-  h2 { font-size: 1.05rem; margin: 0 0 .6rem; color: #9ab; }
-  .card { background: #1a1f29; border: 1px solid #2c3442; border-radius: 10px; padding: 1rem 1.2rem; margin-bottom: 1rem; }
-  label { display: block; font-size: .8rem; color: #8fa; margin: .6rem 0 .2rem; }
-  input, select { width: 100%; padding: .4rem .55rem; border-radius: 6px; border: 1px solid #3a4353;
-                  background: #11151c; color: #e6e6e6; font-size: .88rem; }
-  .row { display: flex; gap: .8rem; }
-  .row > div { flex: 1; }
-  button { background: #2d6cdf; color: #fff; border: 0; border-radius: 6px;
-           padding: .5rem 1.1rem; font-size: .9rem; cursor: pointer; }
-  button:hover { background: #3d7cf0; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--bg-1); color: var(--text-1);
+    max-width: 1080px; margin: 0 auto; padding: 1.2rem 1rem 4rem;
+    line-height: 1.5;
+  }
+
+  /* ---------- 顶栏 ---------- */
+  .topbar { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; margin-bottom: .4rem; }
+  h1 { font-size: 1.25rem; margin: 0; display: flex; align-items: center; gap: .5rem; }
+  .topbar .sub { font-size: .78rem; color: var(--text-3); flex: 1 1 100%; margin: 0 0 .6rem; }
+
+  /* ---------- 卡片 ---------- */
+  .card {
+    background: var(--bg-2); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 1rem 1.2rem; margin-bottom: 1rem;
+  }
+  h2 { font-size: 1rem; margin: 0 0 .8rem; color: var(--text-2); display: flex; align-items: center; gap: .5rem; }
+  h2 .step {
+    font-size: .7rem; background: rgba(45,108,223,.15); color: #6db3f2;
+    border: 1px solid rgba(45,108,223,.35); border-radius: 4px; padding: .05rem .4rem;
+  }
+  h2 .spacer { flex: 1; }
+
+  /* ---------- 表单 ---------- */
+  label { display: block; font-size: .78rem; color: #8fa; margin: .55rem 0 .2rem; }
+  input, select {
+    width: 100%; padding: .42rem .55rem; border-radius: 6px;
+    border: 1px solid var(--border-strong); background: var(--bg-1);
+    color: var(--text-1); font-size: .86rem;
+  }
+  input:focus, select:focus { outline: 2px solid rgba(45,108,223,.5); outline-offset: 0; border-color: var(--accent); }
+  .row { display: flex; gap: .8rem; flex-wrap: wrap; }
+  .row > div { flex: 1 1 140px; }
+
+  /* ---------- 按钮 ---------- */
+  button {
+    background: var(--accent); color: #fff; border: 0; border-radius: 6px;
+    padding: .48rem 1.1rem; font-size: .88rem; cursor: pointer;
+    transition: background .15s;
+  }
+  button:hover { background: var(--accent-hover); }
   button:disabled { background: #445; cursor: wait; }
-  button.ghost { background: #2c3442; }
-  .hint { font-size: .76rem; color: #778; margin-top: .3rem; }
-  .token-note { background: #2a2313; border: 1px solid #66551f; border-radius: 6px;
-                padding: .45rem .8rem; font-size: .78rem; color: #d9c26a; }
-  table { width: 100%; border-collapse: collapse; font-size: .86rem; }
-  th, td { text-align: left; padding: .4rem .5rem; border-bottom: 1px solid #262d3a; }
-  th { color: #8fa; font-weight: 500; }
-  .badge { display: inline-block; border-radius: 4px; padding: .08rem .45rem; font-size: .75rem; color: #fff; margin: 1px 2px 1px 0; }
-  .ok { background: #0a7d32; } .fail { background: #c62828; }
-  .run { background: #b58a2c; } .queue { background: #556; }
-  a { color: #6db3f2; text-decoration: none; }
-  .msg { font-size: .84rem; margin-top: .8rem; color: #9ab; white-space: pre-wrap; }
+  button.ghost { background: var(--border); }
+  button.ghost:hover { background: var(--border-strong); }
+  button.mini { padding: .18rem .6rem; font-size: .76rem; }
+  .btn-danger { background: var(--fail); }
+  .btn-danger:hover { background: #e03535; }
+
+  /* ---------- helper "?" 徽标 ---------- */
+  .helper {
+    position: relative; display: inline-flex; align-items: center; justify-content: center;
+    width: 16px; height: 16px; margin-left: .3rem; flex-shrink: 0;
+    border-radius: 50%; border: 1px solid #5a6b85; color: #8fa;
+    font-size: .68rem; cursor: help; user-select: none; vertical-align: middle;
+  }
+  .helper:hover { border-color: var(--accent); color: #6db3f2; }
+  .helper .tip {
+    display: none; position: absolute; bottom: calc(100% + 8px); left: 50%;
+    transform: translateX(-50%); z-index: 20;
+    width: max-content; max-width: 300px; padding: .5rem .7rem;
+    background: #0d1117; border: 1px solid var(--border-strong); border-radius: 6px;
+    color: var(--text-2); font-size: .74rem; line-height: 1.5;
+    box-shadow: 0 4px 16px rgba(0,0,0,.5); text-align: left; white-space: normal;
+  }
+  .helper .tip a { color: #6db3f2; }
+  .helper:hover .tip { display: block; }
+
+  /* ---------- Token 条 ---------- */
+  .token-bar {
+    background: #2a2313; border: 1px solid #66551f; border-radius: 8px;
+    padding: .5rem .8rem; margin-bottom: 1rem;
+  }
+  .token-line { display: flex; gap: .6rem; align-items: center; }
+  .token-line + .token-line { margin-top: .45rem; }
+  .token-line .label { font-size: .8rem; color: #d9c26a; white-space: nowrap; }
+  .token-line input { flex: 1; background: #1c1a10; border-color: #66551f; }
+  .token-help { margin-top: .45rem; font-size: .76rem; color: #d9c26a; line-height: 1.45; }
+  .token-help[hidden] { display: none; }
+  .token-help a { color: #f0d97a; }
+
+  /* ---------- 工作区：列表 + 参数 ---------- */
+  .workspace { display: grid; grid-template-columns: 1fr 300px; gap: 1rem; align-items: start; }
+  @media (max-width: 800px) { .workspace { grid-template-columns: 1fr; } }
+
+  /* ---------- 插件列表 ---------- */
+  .list-card { padding-bottom: 0; overflow: hidden; } /* sticky bar 贴边需要 */
+  .list-toolbar { display: flex; gap: .6rem; margin-bottom: .6rem; }
+  .list-toolbar input { flex: 1; }
+  #list {
+    max-height: min(58vh, 460px); overflow-y: auto;
+    overscroll-behavior: contain;
+    margin: 0 -1.2rem; padding: 0 1.2rem;
+  }
+  #list .item {
+    display: flex; align-items: flex-start; gap: .6rem;
+    padding: .42rem .5rem; border-bottom: 1px solid var(--border);
+    border-left: 3px solid transparent; cursor: pointer; transition: background .12s;
+  }
+  #list .item:hover { background: var(--bg-3); }
+  #list .item.selected { background: rgba(45,108,223,.08); border-left-color: var(--accent); }
+  #list .item input[type=checkbox] { width: auto; margin-top: .28rem; flex-shrink: 0; cursor: pointer; }
+  #list .item .body { flex: 1; min-width: 0; }
+  #list .item .name { font-size: .88rem; }
+  #list .item .meta { color: var(--text-3); font-size: .75rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #list mark { background: #2d6cdf55; color: #cfe2ff; border-radius: 2px; padding: 0 1px; }
+
+  /* ---------- 贴底栏 ---------- */
+  .sticky-bar {
+    position: sticky; bottom: 0;
+    display: flex; gap: .7rem; align-items: center; flex-wrap: wrap;
+    background: #16202f; border-top: 1px solid var(--accent);
+    margin: .6rem -1.2rem 0; padding: .55rem 1.2rem;
+    border-radius: 0 0 var(--radius) var(--radius);
+  }
+  .sticky-bar .count { font-size: .84rem; color: var(--text-2); }
+  .sticky-bar .spacer { flex: 1; }
+
+  /* ---------- 记录表 ---------- */
+  table { width: 100%; border-collapse: collapse; font-size: .85rem; table-layout: fixed; }
+  th, td { text-align: left; padding: .45rem .5rem; border-bottom: 1px solid #262d3a; vertical-align: middle; }
+  th { color: #8fa; font-weight: 500; font-size: .78rem; }
+  td.col-time { width: 150px; color: var(--text-2); font-size: .8rem; }
+  td.col-run { width: 70px; color: var(--text-3); }
+  td a { margin-left: .5rem; }
+  td.col-status .badge { margin-right: .4rem; }
+
+  /* ---------- 徽章 ---------- */
+  .badge {
+    display: inline-block; border-radius: 4px; padding: .1rem .45rem;
+    font-size: .74rem; color: #fff; white-space: nowrap;
+  }
+  .badge.ok { background: var(--ok); }
+  .badge.fail { background: var(--fail); }
+  .badge.run { background: var(--run); }
+  .badge.queue { background: #556; }
+
+  /* ---------- 提示文本 ---------- */
+  .hint { font-size: .76rem; color: var(--text-3); margin: .3rem 0 0; }
+  .msg { font-size: .84rem; margin-top: .8rem; color: var(--text-2); white-space: pre-wrap; }
   .err { color: #f2a09e; }
-  #list { max-height: 360px; overflow-y: auto; }
-  #list .item { display: flex; align-items: center; gap: .6rem; padding: .3rem; border-bottom: 1px solid #232a36; }
-  #list .item input[type=checkbox] { width: auto; }
-  #list .meta { color: #778; font-size: .76rem; }
-  .sticky-bar { position: sticky; bottom: .6rem; display: flex; gap: 1rem; align-items: center;
-                background: #16202f; border: 1px solid #2d6cdf; border-radius: 8px; padding: .55rem 1rem; }
-  #mask { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: none;
-          align-items: center; justify-content: center; z-index: 10; }
+  a { color: #6db3f2; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  /* ---------- 确认弹窗 ---------- */
+  #mask {
+    position: fixed; inset: 0; background: rgba(0,0,0,.65);
+    display: none; align-items: center; justify-content: center; z-index: 10;
+    padding: 1rem;
+  }
   #mask.show { display: flex; }
-  #confirm { background: #1a1f29; border: 1px solid #2d6cdf; border-radius: 10px;
-             max-width: 640px; width: 92%; max-height: 80vh; overflow-y: auto; padding: 1.2rem; }
-  #confirm ul { max-height: 260px; overflow-y: auto; font-size: .84rem; padding-left: 1.2rem; }
-  #confirm .actions { display: flex; gap: .8rem; margin-top: 1rem; }
-  .btn-danger { background: #c62828; }
+  #confirm {
+    background: var(--bg-2); border: 1px solid var(--accent); border-radius: var(--radius);
+    max-width: 680px; width: 100%; max-height: 84vh;
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  #confirm .head { padding: 1rem 1.2rem .6rem; border-bottom: 1px solid var(--border); }
+  #confirm .head h2 { margin: 0; }
+  #confirm .body { padding: .8rem 1.2rem; overflow-y: auto; flex: 1; }
+  #confirm .body ul {
+    columns: 2; column-gap: 1.2rem;
+    font-size: .82rem; padding-left: 1.1rem; margin: .5rem 0;
+  }
+  #confirm .body li { break-inside: avoid; padding: .1rem 0; }
+  #confirm .actions {
+    display: flex; gap: .8rem; justify-content: flex-end;
+    padding: .8rem 1.2rem; border-top: 1px solid var(--border);
+    background: #16202f;
+  }
+  #confirm .actions .msg { flex: 1; margin: 0; align-self: center; }
+  @media (max-width: 520px) { #confirm .body ul { columns: 1; } }
+
+  /* ---------- 记录表手机端卡片化 ---------- */
+  @media (max-width: 600px) {
+    table, thead, tbody, th, td, tr { display: block; }
+    thead { display: none; }
+    tr { border: 1px solid var(--border); border-radius: 8px; margin-bottom: .6rem; padding: .5rem .7rem; background: var(--bg-1); }
+    td { border: 0; padding: .2rem 0; width: auto !important; }
+    td.col-time { font-size: .78rem; }
+  }
 </style>
 </head>
 <body>
-<h1>🧪 插件兼容性测试控制台</h1>
-<p class="hint">从鬼斩资源站勾选附属（支持批量上百个），一次开服同时测试所有插件的启动兼容性。仅覆盖启动阶段判定。</p>
 
-<div class="card">
-  <div class="token-note">首次使用需要 fine-grained PAT：仅勾选本仓库的 <b>Actions: Read and write</b>，
-    在 <a href="https://github.com/settings/personal-access-tokens/new" target="_blank">GitHub Token 设置</a>生成。Token 只存浏览器 localStorage。</div>
-  <div class="row">
-    <div>
-      <label>GitHub Token *</label>
-      <input id="token" type="password" placeholder="github_pat_...">
-    </div>
-    <div>
-      <label>仓库（owner/repo）*</label>
-      <input id="repo" value="balugaq/sf-plugin-starting-tester">
-    </div>
-    <div>
-      <label>分支</label>
-      <input id="ref" value="main">
-    </div>
+<!-- 顶栏 -->
+<div class="topbar">
+  <h1>🧪 插件兼容性测试控制台</h1>
+</div>
+<p class="sub">从鬼斩资源站勾选附属（支持批量上百个），一次开服同时测试所有插件的启动兼容性。仅覆盖启动阶段判定。</p>
+
+<!-- Token 条 -->
+<div class="token-bar">
+  <div class="token-line">
+    <span class="label">🔑 GitHub Token</span>
+    <input id="token" type="password" placeholder="github_pat_...">
+    <button class="ghost mini" onclick="document.getElementById('tokenHelp').hidden ^= 1">?</button>
+  </div>
+  <div class="token-line">
+    <span class="label">🍬 鬼斩 Token</span>
+    <input id="gzToken" type="password" placeholder="选填，资源站个人 Token">
+    <span class="helper">?
+      <span class="tip">
+        鬼斩资源站的<b>个人 API Token</b>，在
+        <a href="https://resources.guizhanss.com/settings/tokens" target="_blank">资源站 → 设置 → Token</a>
+        页面生成。<br>
+        <b>选填</b>：控制台用到的接口（插件目录、版本、下载）都是公开的，不填也能正常使用。
+        填了可以在高频请求时提高 API 速率限制，Token 只存浏览器 localStorage。
+      </span>
+    </span>
+  </div>
+  <div class="token-help" id="tokenHelp" hidden>
+    首次使用需要 fine-grained PAT：仅勾选本仓库的 <b>Actions: Read and write</b>，
+    在 <a href="https://github.com/settings/personal-access-tokens/new" target="_blank">GitHub Token 设置</a> 生成。
+    Token 只存浏览器 localStorage。
   </div>
 </div>
 
-<div class="card">
-  <h2>① 选择插件 <button class="ghost" style="float:right;padding:.15rem .6rem;font-size:.78rem" onclick="loadCatalog(true)">刷新目录</button></h2>
-  <input id="search" placeholder="🔍 搜索名称 / 简介…" oninput="renderList()">
-  <div id="list" style="margin-top:.6rem"><span class="hint">填好 Token 后自动加载目录</span></div>
-  <div class="sticky-bar">
-    <span id="selCount">已选 0 个插件</span>
-    <button class="ghost" onclick="sel.clear();renderList()">清空选择</button>
-    <span style="flex:1"></span>
-    <button onclick="openConfirm()">开始测试 ▶</button>
+<!-- 工作区 -->
+<div class="workspace">
+
+  <!-- 左：选择插件 -->
+  <div class="card list-card">
+    <h2><span class="step">①</span>选择插件
+      <span class="spacer"></span>
+      <button class="ghost mini" onclick="loadCatalog(true)">刷新目录</button>
+    </h2>
+    <div class="list-toolbar">
+      <input id="search" placeholder="🔍 搜索名称 / 简介…" oninput="renderList()">
+    </div>
+    <div id="list"><span class="hint">填好 GitHub Token 后自动加载目录</span></div>
+    <div class="sticky-bar">
+      <span class="count" id="selCount">已选 0 个插件</span>
+      <button class="ghost mini" onclick="sel.clear();renderList()">清空</button>
+      <span class="spacer"></span>
+      <button onclick="openConfirm()">开始测试 ▶</button>
+    </div>
   </div>
+
+  <!-- 右：测试参数 -->
+  <div class="card">
+    <h2><span class="step">②</span>测试参数</h2>
+    <label>仓库（owner/repo）*</label>
+    <input id="repo" value="balugaq/sf-plugin-starting-tester">
+    <label>分支</label>
+    <input id="ref" value="main">
+    <label>插件版本（全部应用，留空=最新）</label>
+    <input id="ver" placeholder="留空">
+    <label>服务端平台</label>
+    <select id="platform"><option>paper</option><option>purpur</option><option>folia</option></select>
+    <label>MC 版本（逗号分隔，每个一次开服）*</label>
+    <input id="mcvers" value="26.2">
+    <label>开服超时秒数</label>
+    <input id="timeout" value="900">
+    <label>额外 softdepend（逗号分隔）</label>
+    <input id="softdep" placeholder="留空，GuizhanLibPlugin 自动装">
+  </div>
+
 </div>
 
+<!-- 记录 -->
 <div class="card">
-  <h2>② 测试参数</h2>
-  <div class="row">
-    <div>
-      <label>插件版本（应用到全部，留空 = 最新）</label>
-      <input id="ver" placeholder="留空">
-    </div>
-    <div>
-      <label>服务端平台</label>
-      <select id="platform"><option>paper</option><option>purpur</option><option>folia</option></select>
-    </div>
-  </div>
-  <div class="row">
-    <div>
-      <label>MC 版本（逗号分隔，每个版本一次开服）*</label>
-      <input id="mcvers" value="26.2">
-    </div>
-    <div>
-      <label>开服超时秒数（插件多时调大）</label>
-      <input id="timeout" value="900">
-    </div>
-  </div>
-  <label>额外安装的 softdepend（逗号分隔，GuizhanLibPlugin 自动装）</label>
-  <input id="softdep" placeholder="留空">
-</div>
-
-<h2>③ 测试记录</h2>
-<div class="card">
-  <div style="display:flex;gap:.8rem;align-items:center;margin-bottom:.4rem">
-    <button class="ghost" style="padding:.15rem .6rem;font-size:.78rem" onclick="loadResults()">刷新</button>
-    <span class="hint">每个 MC 版本对应一条记录；HTML 报告（每个插件的 ✔/✘ 与报错）部署在 Pages 的 report.html，随最近一次测试更新</span>
-  </div>
+  <h2><span class="step">③</span>测试记录
+    <span class="spacer"></span>
+    <button class="ghost mini" onclick="loadResults()">刷新</button>
+  </h2>
+  <p class="hint" style="margin-bottom:.6rem">
+    每个 MC 版本对应一条记录；HTML 报告（每个插件的 ✔/✘ 与报错）部署在 Pages 的 report.html，随最近一次测试更新。
+  </p>
   <table>
-    <thead><tr><th>时间</th><th>测试</th><th>状态</th><th>链接</th></tr></thead>
-    <tbody id="results"><tr><td colspan="4" class="hint">等待触发测试后显示</td></tr></tbody>
+    <thead><tr><th class="col-time">时间</th><th class="col-run">运行</th><th class="col-status">状态 &amp; 操作</th></tr></thead>
+    <tbody id="results"><tr><td colspan="3" class="hint">等待触发测试后显示</td></tr></tbody>
   </table>
 </div>
 
+<!-- 确认弹窗 -->
 <div id="mask">
   <div id="confirm">
-    <h2>确认开始测试</h2>
-    <div id="confirmBody"></div>
+    <div class="head"><h2>确认开始测试</h2></div>
+    <div class="body" id="confirmBody"></div>
     <div class="actions">
-      <button class="ghost" onclick="$('mask').classList.remove('show')">取消</button>
+      <div class="msg" id="goMsg"></div>
+      <button class="ghost" onclick="document.getElementById('mask').classList.remove('show')">取消</button>
       <button class="btn-danger" id="goBtn" onclick="startBatch()">🚀 正式开始</button>
     </div>
-    <div id="goMsg" class="msg"></div>
   </div>
 </div>
 
@@ -142,7 +309,12 @@ const WF = 'test-compatibility.yml';
 const $ = id => document.getElementById(id);
 
 $('token').value = localStorage.getItem('gh_pat') || '';
-$('repo').placeholder = guessRepo() || 'owner/repo';
+$('gzToken').value = localStorage.getItem('gz_token') || '';
+$('repo').value = $('repo').value || guessRepo() || 'balugaq/sf-plugin-starting-tester';
+
+$('gzToken').addEventListener('change', () => {
+  localStorage.setItem('gz_token', $('gzToken').value.trim());
+});
 
 function guessRepo() {
   const p = location.pathname.split('/').filter(Boolean);
@@ -159,6 +331,13 @@ function ghHeaders() {
   localStorage.setItem('gh_pat', t);
   return { Authorization: `Bearer ${t}`, Accept: 'application/vnd.github+json' };
 }
+/* 鬼斩资源站请求头：填了 Token 就带上（提高速率限制/访问需鉴权的接口），没填就匿名 */
+function gzHeaders(extra) {
+  const h = Object.assign({}, extra);
+  const t = $('gzToken').value.trim();
+  if (t) h['Authorization'] = `Bearer ${t}`;
+  return h;
+}
 
 /* ---------- ① 插件目录 ---------- */
 let CATALOG = null;
@@ -169,11 +348,11 @@ async function loadCatalog(force) {
   if (cached) { renderList(); return; }
   $('list').innerHTML = '<span class="hint">加载目录中…</span>';
   try {
-    const first = await (await fetch(`${SITE}/projects?page_size=50&page=1`)).json();
+    const first = await (await fetch(`${SITE}/projects?page_size=50&page=1`, { headers: gzHeaders() })).json();
     const total = first.pagination?.total_items ?? first.data.length;
     const items = [...first.data];
     for (let p = 2; p <= Math.ceil(total / 50); p++) {
-      const d = await (await fetch(`${SITE}/projects?page_size=50&page=${p}`)).json();
+      const d = await (await fetch(`${SITE}/projects?page_size=50&page=${p}`, { headers: gzHeaders() })).json();
       items.push(...d.data);
     }
     CATALOG = { fetchedAt: Date.now(), items };
@@ -184,34 +363,46 @@ async function loadCatalog(force) {
   }
 }
 
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function hi(text, q) {
+  const t = esc(text || '');
+  if (!q) return t;
+  try {
+    return t.replace(new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'ig'), '<mark>$1</mark>');
+  } catch { return t; }
+}
+
 function renderList() {
   const q = $('search').value.trim().toLowerCase();
   const items = (CATALOG?.items || []).filter(p =>
     !q || p.name?.toLowerCase().includes(q) || p.slug.toLowerCase().includes(q) || p.summary?.toLowerCase().includes(q));
   const el = $('list');
-  if (!items.length) { el.innerHTML = '<span class="hint">无匹配项</span>'; return; }
+  if (!items.length) { el.innerHTML = '<span class="hint">无匹配项</span>'; $('selCount').textContent = `已选 ${sel.size} 个插件`; return; }
   el.innerHTML = items.map(p => `
-    <div class="item">
+    <label class="item ${sel.has(p.slug) ? 'selected' : ''}">
       <input type="checkbox" ${sel.has(p.slug) ? 'checked' : ''} onchange="toggleSel('${p.slug}', this.checked)">
-      <div style="flex:1;min-width:0">
-        <div><b>${p.name || p.slug}</b> <span class="meta">@${p.slug} · ↓${p.downloads ?? 0}</span></div>
-        <div class="meta">${(p.summary || '').slice(0, 80)}</div>
+      <div class="body">
+        <div class="name"><b>${hi(p.name || p.slug, q)}</b> <span class="meta">@${esc(p.slug)} · ↓${p.downloads ?? 0}</span></div>
+        <div class="meta">${hi((p.summary || '').slice(0, 90), q)}</div>
       </div>
-    </div>`).join('');
+    </label>`).join('');
   $('selCount').textContent = `已选 ${sel.size} 个插件`;
 }
 function toggleSel(slug, on) { on ? sel.add(slug) : sel.delete(slug); renderList(); }
 
-/* ---------- ② 确认与触发（单次 dispatch，一次开服装全部） ---------- */
+/* ---------- ② 确认与触发 ---------- */
 function openConfirm() {
   if (!sel.size) { alert('请先勾选至少一个插件'); return; }
   const mc = $('mcvers').value.trim();
   if (!mc) { alert('请填 MC 版本'); return; }
   const slugs = [...sel];
   $('confirmBody').innerHTML = `
-    <p>一次开服同时测试 <b>${slugs.length}</b> 个插件，MC 版本 <b>${mc}</b>，平台 <b>${$('platform').value}</b>。</p>
-    <ul>${slugs.map(s => `<li>${s}</li>`).join('')}</ul>
-    <p class="hint">插件多时启动时间长，超时已按参数设置（${$('timeout').value}s）。若个别插件依赖互相冲突，整批可能受影响，建议分批测试。</p>`;
+    <p>一次开服同时测试 <b>${slugs.length}</b> 个插件，MC 版本 <b>${esc(mc)}</b>，平台 <b>${esc($('platform').value)}</b>。</p>
+    <ul>${slugs.map(s => `<li>${esc(s)}</li>`).join('')}</ul>
+    <p class="hint">插件多时启动时间长，超时已按参数设置（${esc($('timeout').value)}s）。若个别插件依赖互相冲突，整批可能受影响，建议分批测试。</p>`;
+  $('goMsg').textContent = '';
   $('mask').classList.add('show');
 }
 
@@ -235,7 +426,8 @@ async function startBatch() {
       })
     });
     if (res.status !== 204) throw new Error(`HTTP ${res.status} ${(await res.text()).slice(0, 200)}`);
-    go.textContent = '✅ 已触发！等待开服测试完成（见下方测试记录，20 秒自动刷新）。';
+    go.textContent = '✅ 已触发！等待开服测试完成（下方记录 20 秒自动刷新）。';
+    go.className = 'msg';
     $('mask').classList.remove('show');
     loadResults();
   } catch (e) {
@@ -253,17 +445,20 @@ async function loadResults() {
     let html = '';
     for (const r of runs) {
       const badge = r.status === 'completed'
-        ? `<span class="badge ${r.conclusion === 'success' ? 'ok' : 'fail'}">${r.conclusion === 'success' ? '完成' : '失败'}</span>`
-        : `<span class="badge run">${r.status === 'queued' ? '排队' : '运行中'}</span>`;
+        ? `<span class="badge ${r.conclusion === 'success' ? 'ok' : 'fail'}">${r.conclusion === 'success' ? '✔ 完成' : '✘ 失败'}</span>`
+        : `<span class="badge ${r.status === 'queued' ? 'queue' : 'run'}">${r.status === 'queued' ? '⏳ 排队' : '🟡 运行中'}</span>`;
+      const report = r.status === 'completed'
+        ? `<a href="https://${repoPath().split('/')[0]}.github.io/${repoPath().split('/')[1]}/report.html" target="_blank">报告</a>`
+        : '';
       html += `<tr>
-        <td>${new Date(r.created_at).toLocaleString('zh-CN', { hour12: false })}</td>
-        <td>#${r.run_number}</td>
-        <td>${badge}${r.status !== 'completed' ? '<span class="hint"> 完成后结果展示在 report.html</span>' : ''}</td>
-        <td><a href="${r.html_url}" target="_blank">日志</a></td></tr>`;
+        <td class="col-time">${new Date(r.created_at).toLocaleString('zh-CN', { hour12: false })}</td>
+        <td class="col-run">#${r.run_number}</td>
+        <td class="col-status">${badge}<a href="${r.html_url}" target="_blank">日志</a>${report}</td>
+      </tr>`;
     }
-    tbody.innerHTML = html || '<tr><td colspan="4" class="hint">还没有运行记录</td></tr>';
+    tbody.innerHTML = html || '<tr><td colspan="3" class="hint">还没有运行记录</td></tr>';
   } catch (e) {
-    tbody.innerHTML = `<tr><td colspan="4" class="err">${e.message}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="3" class="err">${e.message}</td></tr>`;
   }
   clearTimeout(loadResults._t);
   loadResults._t = setTimeout(loadResults, 20000);
