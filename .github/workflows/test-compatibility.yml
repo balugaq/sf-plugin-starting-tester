@@ -106,7 +106,7 @@ jobs:
 
       - name: 上传结果
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: t-batch-${{ matrix.mcver }}
           path: results/
@@ -138,7 +138,7 @@ jobs:
         run: python3 scripts/build-report.py
 
       - name: 上传报告（artifact）
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: compatibility-report
           path: |
