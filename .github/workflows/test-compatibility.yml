@@ -1,0 +1,131 @@
+name: Plugin Compatibility Test
+
+# 手动触发：从鬼斩资源站下载指定插件（自动装硬依赖），
+# 在多个 MC 版本上开服测试能否正常启用，汇总生成 HTML 报告。
+on:
+  workflow_dispatch:
+    inputs:
+      plugin_slug:
+        description: "资源站项目 slug（如 infinity-machines）"
+        required: true
+      plugin_version:
+        description: "版本号（留空 = 最新 release）"
+        required: false
+        default: ""
+      minecraft_versions:
+        description: "要测试的 MC 版本，逗号分隔"
+        required: true
+        default: "1.21.4,1.20.6,1.20.4"
+      platform:
+        description: "服务端平台（paper / purpur / folia）"
+        required: false
+        default: "paper"
+      start_timeout:
+        description: "单次开服超时秒数"
+        required: false
+        default: "600"
+      publish_pages:
+        description: "将报告发布到 GitHub Pages"
+        type: boolean
+        required: false
+        default: false
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  test:
+    name: "MC ${{ matrix.mcver }}"
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        mcver: ${{ fromJSON(format('["{0}"]', replace(github.event.inputs.minecraft_versions, ',', '","'))) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: 下载插件与依赖
+        env:
+          GUIZHAN_TOKEN: ${{ secrets.GUIZHAN_TOKEN }}
+          PLUGIN_SLUG: ${{ inputs.plugin_slug }}
+          PLUGIN_VERSION: ${{ inputs.plugin_version }}
+        run: bash scripts/resolve-plugin.sh "$PLUGIN_SLUG" "$PLUGIN_VERSION"
+
+      - name: 开服测试
+        env:
+          PLUGIN_SLUG: ${{ inputs.plugin_slug }}
+          PLUGIN_VERSION: ${{ inputs.plugin_version }}
+          START_TIMEOUT: ${{ inputs.start_timeout }}
+        run: bash scripts/run-server.sh "${{ matrix.mcver }}" "${{ inputs.platform }}"
+
+      - name: 打包结果与日志
+        if: always()
+        run: |
+          mkdir -p results
+          mv result-*.json results/ 2>/dev/null || true
+          cp console.log "results/console-${{ matrix.mcver }}.log" 2>/dev/null || true
+
+      - name: 上传结果
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-result-${{ matrix.mcver }}
+          path: results/
+
+  report:
+    name: 汇总报告
+    runs-on: ubuntu-latest
+    needs: test
+    if: always()
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 收集各版本结果
+        uses: actions/download-artifact@v4
+        with:
+          pattern: test-result-*
+          path: artifacts/
+
+      - name: 合并结果文件
+        run: |
+          mkdir -p results
+          find artifacts -name "result-*.json" -exec cp {} results/ \;
+
+      - name: 生成 HTML 报告
+        run: python3 scripts/build-report.py
+
+      - name: 上传报告（artifact）
+        uses: actions/upload-artifact@v4
+        with:
+          name: compatibility-report
+          path: |
+            report.html
+            console-*.log
+
+      - name: 发布到 GitHub Pages
+        if: inputs.publish_pages == true
+        run: |
+          mkdir -p _site
+          cp report.html _site/
+
+      - name: 上传 Pages 产物
+        if: inputs.publish_pages == true
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: 部署 Pages
+        if: inputs.publish_pages == true
+        uses: actions/deploy-pages@v4
