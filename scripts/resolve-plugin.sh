@@ -18,21 +18,26 @@ api() {
   fi
 }
 
-# 统一响应壳: {code, message, data, pagination}; 列表可能在 data.items 或 data
-jq_items() {
-  jq -r '[.data.items[]?, .data[]?] | .[]'
+urlenc() {
+  python3 -c "import urllib.parse,sys;print(urllib.parse.quote(sys.argv[1]))" "$1"
 }
 
+#   /projects/{slug}          → data 为平铺对象
+#   /projects/{slug}/versions → data 为平铺数组
+#   /versions/{id}            → data 为平铺对象，files 直接挂在 data.files
 download_version() {
   local project_id="$1" version_id="$2"
   local detail
   detail=$(api "/versions/$version_id")
-  echo "$detail" | jq_items | jq -r '.files[]? | [.id, .name] | @tsv' | while IFS=$'\t' read -r fid fname; do
-    [ -z "$fid" ] && continue
+  echo "$detail" | jq -c '.data.files[]?' | while read -r f; do
+    local fid fname
+    fid=$(echo "$f" | jq -r '.id')
+    fname=$(echo "$f" | jq -r '.name')
+    [ -z "$fid" ] || [ "$fid" = "null" ] && continue
     echo "下载文件: $fname"
     curl -sfL -o "$OUT_DIR/$fname" "$API/projects/$project_id/versions/$version_id/download/$fid"
     local expect
-    expect=$(echo "$detail" | jq -r --arg n "$fname" '[.data.items[]?, .data[]?][0].files[]? | select(.name == $n) | .checksum.sha256 // empty')
+    expect=$(echo "$f" | jq -r '.checksum.sha256 // empty')
     if [ -n "$expect" ]; then
       echo "$expect  $OUT_DIR/$fname" | sha256sum -c - >/dev/null \
         || { echo "sha256 校验失败: $fname"; exit 1; }
@@ -40,52 +45,64 @@ download_version() {
   done
 }
 
-resolve_project_by_name() {
-  # 按插件名搜资源站，返回 (id, slug)；找不到输出空
+resolve_project() {
+  # 按名称或 slug 搜资源站（name 与 slug 可能不同：GuizhanLibPlugin 的 name 是 GuizhanLib）
   local name="$1"
-  api "/projects?q=$(python3 -c "import urllib.parse,sys;print(urllib.parse.quote(sys.argv[1]))" "$name")&page_size=5" \
-    | jq_items | jq -r 'select(.name == $n) | "\(.id)\t\(.slug)"' --arg n "$name" | head -1
+  api "/projects?q=$(urlenc "$name")&page_size=5" \
+    | jq -r --arg n "$name" '.data[]? | select(.slug == $n or .name == $n) | .slug' | head -1
 }
 
 download_plugin() {
   local slug="$1" ver="${2:-}"
-  local proj
-  proj=$(api "/projects/$slug")
   local pid
-  pid=$(echo "$proj" | jq -r '[.data.items[]?, .data[]?][0].id // .data.id')
+  pid=$(api "/projects/$slug" | jq -r '.data.id')
 
-  # release 渠道可能为空（如 Slimefun4 走 master 渠道），为空就去掉 channel 重查
-  versions=$(api "/projects/$slug/versions?channel=release")
-  if [ "$(echo "$versions" | jq_items | wc -l)" -eq 0 ]; then
-    versions=$(api "/projects/$slug/versions")
-  fi
+  local versions
+  # release 渠道可能不存在（404，如 ExoticGarden 只有 master 渠道），失败回落为空
+  versions=$(api "/projects/$slug/versions?channel=release" || echo '{"data":[]}')
+
+  local vid=""
   if [ -n "$ver" ]; then
-    vid=$(echo "$versions" | jq -r --arg v "$ver" '[.data.items[]?, .data[]?] | map(select(.version == $v))[0].id // empty')
+    vid=$(echo "$versions" | jq -r --arg v "$ver" '.data[]? | select(.version == $v) | .id' | head -1)
   fi
-  # 版本号匹配不到时回落到最新 release（资源站 version 字段可能与用户认知不一致）
-  if [ -z "${vid:-}" ]; then
-    vid=$(echo "$versions" | jq -r '[.data.items[]?, .data[]?] | sort_by(.created_at) | reverse | .[0].id // empty')
+  # 未指定版本：优先 release 渠道最新；没有则取默认渠道最新；再没有取全站最新
+  if [ -z "$vid" ] && [ "$(echo "$versions" | jq '.data | length' 2>/dev/null || echo 0)" -gt 0 ]; then
+    vid=$(echo "$versions" | jq -r '.data | sort_by(.created_at) | reverse | .[0].id // empty')
   fi
-  [ -z "${vid:-}" ] && { echo "找不到版本: $slug $ver"; return 1; }
+  if [ -z "$vid" ]; then
+    versions=$(api "/projects/$slug/versions")
+    # 默认渠道的构建通常比开发渠道更稳，优先取
+    vid=$(echo "$versions" | jq -r '[.data[]? | select(.channel.is_default == true)] | sort_by(.created_at) | reverse | .[0].id // empty')
+  fi
+  if [ -z "$vid" ]; then
+    vid=$(echo "$versions" | jq -r '.data | sort_by(.created_at) | reverse | .[0].id // empty')
+  fi
+  [ -z "$vid" ] && { echo "找不到版本: $slug $ver"; return 1; }
 
   echo "下载 $slug (version id: $vid)"
   download_version "$pid" "$vid"
 }
 
-# ---- 主流程 ----
-SLUG="$1"
-VER="${2:-}"
-download_plugin "$SLUG" "$VER"
-
-# 解析主插件 plugin.yml 的 depend 与 softdepend，各下载最新 release（深度 1，不递归）
-MAIN_JAR=$(ls -t "$OUT_DIR"/*.jar | head -1)
-PLUGIN_NAME=$(unzip -p "$MAIN_JAR" plugin.yml | awk '/^name:/{print $2}' | tr -d '\r')
-echo "主插件: $PLUGIN_NAME"
-
-read_deps() {  # $1 = depend | softdepend
-  unzip -p "$MAIN_JAR" plugin.yml \
-    | sed -n "/^$1:/,/^[a-z_]*:/p" | sed '$d' \
-    | grep -oP '\[\K[^\]]+' | tr ',' '\n' | tr -d " '" | tr -d '"' | sed '/^$/d' || true
+read_deps() {  # $1 = depend | softdepend；兼容列表格式（- X）与行内格式（[X, Y]）
+  unzip -p "$MAIN_JAR" plugin.yml | python3 -c "
+import re, sys
+key, out, grab = sys.argv[1], [], False
+for line in sys.stdin:
+    s = line.rstrip()
+    m = re.match(r'^([A-Za-z_][\w-]*)\s*:(.*)$', s)
+    if m:
+        if grab:
+            break
+        grab = m.group(1) == key
+        if grab:
+            rest = m.group(2).strip().strip('[]')
+            out += [x.strip().strip('\'\"') for x in rest.split(',') if x.strip()]
+        continue
+    if grab:
+        li = re.match(r'\s*-\s*(.+)$', s)
+        if li:
+            out.append(li.group(1).strip().strip('\'\"'))
+print('\n'.join(dict.fromkeys(out)))" "$1" | tr -d '\r'
 }
 
 download_dep() {
@@ -95,14 +112,23 @@ download_dep() {
   case "$dep" in
     Slimefun) download_plugin "Slimefun4"; return 0 ;;
   esac
-  local line
-  line=$(resolve_project_by_name "$dep")
-  if [ -z "$line" ]; then
+  local dep_slug
+  dep_slug=$(resolve_project "$dep")
+  if [ -z "$dep_slug" ]; then
     echo "警告: 资源站找不到 $dep（可能导致假失败，可放入 extra-plugins/ 自行补充）"
     return 0
   fi
-  download_plugin "$(echo "$line" | cut -f2)"
+  download_plugin "$dep_slug"
 }
+
+# ---- 主流程 ----
+SLUG="$1"
+VER="${2:-}"
+download_plugin "$SLUG" "$VER"
+
+MAIN_JAR=$(ls -t "$OUT_DIR"/*.jar | head -1)
+PLUGIN_NAME=$(unzip -p "$MAIN_JAR" plugin.yml | awk '/^name:/{print $2}' | tr -d '\r')
+echo "主插件: $PLUGIN_NAME"
 
 # 硬依赖全装（含 Slimefun4 —— 它就在资源站上）
 for dep in $(read_deps depend); do
@@ -122,4 +148,4 @@ if [ -d extra-plugins ]; then
   cp extra-plugins/*.jar "$OUT_DIR"/ 2>/dev/null || true
 fi
 
-echo "PLUGIN_NAME=$PLUGIN_NAME" >> "$GITHUB_ENV"
+echo "PLUGIN_NAME=$PLUGIN_NAME" >> "${GITHUB_ENV:-/dev/null}"
