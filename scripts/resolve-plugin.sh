@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
-# 从鬼斩资源站解析并下载插件 jar 及其硬依赖（depend），深度 1 层。
+# 从鬼斩资源站解析并下载插件 jar、硬依赖（depend）与用户勾选的软依赖（softdepend）。
+# 依赖的依赖不递归装，用户可把 jar 放进仓库 extra-plugins/ 目录自行补充。
 # 用法: resolve-plugin.sh <slug> [version]
+# 环境变量: SOFTDEPEND_INSTALL（逗号分隔的 softdepend 插件名，选装）
 set -euo pipefail
 
 API="https://resources.guizhanss.com/api/v1"
@@ -52,8 +54,11 @@ download_plugin() {
   local pid
   pid=$(echo "$proj" | jq -r '[.data.items[]?, .data[]?][0].id // .data.id')
 
-  local versions
+  # release 渠道可能为空（如 Slimefun4 走 master 渠道），为空就去掉 channel 重查
   versions=$(api "/projects/$slug/versions?channel=release")
+  if [ "$(echo "$versions" | jq_items | wc -l)" -eq 0 ]; then
+    versions=$(api "/projects/$slug/versions")
+  fi
   if [ -n "$ver" ]; then
     vid=$(echo "$versions" | jq -r --arg v "$ver" '[.data.items[]?, .data[]?] | map(select(.version == $v))[0].id // empty')
   fi
@@ -72,26 +77,49 @@ SLUG="$1"
 VER="${2:-}"
 download_plugin "$SLUG" "$VER"
 
-# 解析主插件 plugin.yml 的 depend，逐个下载最新 release（深度 1，不递归）
+# 解析主插件 plugin.yml 的 depend 与 softdepend，各下载最新 release（深度 1，不递归）
 MAIN_JAR=$(ls -t "$OUT_DIR"/*.jar | head -1)
 PLUGIN_NAME=$(unzip -p "$MAIN_JAR" plugin.yml | awk '/^name:/{print $2}' | tr -d '\r')
 echo "主插件: $PLUGIN_NAME"
 
-DEPS=$(unzip -p "$MAIN_JAR" plugin.yml \
-  | sed -n '/^depend:/,/^[a-z_]*:/p' | sed '$d' \
-  | grep -oP '\[\K[^\]]+' | tr ',' '\n' | tr -d " '" | tr -d '"' | sed '/^$/d' || true)
+read_deps() {  # $1 = depend | softdepend
+  unzip -p "$MAIN_JAR" plugin.yml \
+    | sed -n "/^$1:/,/^[a-z_]*:/p" | sed '$d' \
+    | grep -oP '\[\K[^\]]+' | tr ',' '\n' | tr -d " '" | tr -d '"' | sed '/^$/d' || true
+}
 
-for dep in $DEPS; do
-  [ "$dep" = "Slimefun" ] && continue  # Slimefun4 不在资源站，另行处理
-  echo "解析硬依赖: $dep"
+download_dep() {
+  local dep="$1"
+  echo "下载依赖: $dep"
+  # plugin.yml 里的名字与资源站 slug 不一致时的别名映射
+  case "$dep" in
+    Slimefun) download_plugin "Slimefun4"; return 0 ;;
+  esac
+  local line
   line=$(resolve_project_by_name "$dep")
   if [ -z "$line" ]; then
-    echo "警告: 资源站找不到依赖 $dep（可能导致假失败）"
-    continue
+    echo "警告: 资源站找不到 $dep（可能导致假失败，可放入 extra-plugins/ 自行补充）"
+    return 0
   fi
-  dep_id=$(echo "$line" | cut -f1)
-  dep_slug=$(echo "$line" | cut -f2)
-  download_plugin "$dep_slug"
+  download_plugin "$(echo "$line" | cut -f2)"
+}
+
+# 硬依赖全装（含 Slimefun4 —— 它就在资源站上）
+for dep in $(read_deps depend); do
+  download_dep "$dep"
 done
+
+# 软依赖：GuizhanLibPlugin 必装，其余按用户勾选
+SOFT_SELECTED=",${SOFTDEPEND_INSTALL:-},"
+for dep in $(read_deps softdepend); do
+  if [ "$dep" = "GuizhanLibPlugin" ] || [[ "$SOFT_SELECTED" == *",$dep,"* ]]; then
+    download_dep "$dep"
+  fi
+done
+
+# 用户自备 jar（解决依赖的依赖等特殊场景）
+if [ -d extra-plugins ]; then
+  cp extra-plugins/*.jar "$OUT_DIR"/ 2>/dev/null || true
+fi
 
 echo "PLUGIN_NAME=$PLUGIN_NAME" >> "$GITHUB_ENV"

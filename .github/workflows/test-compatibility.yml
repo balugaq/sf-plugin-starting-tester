@@ -12,6 +12,14 @@ on:
         description: "版本号（留空 = 最新 release）"
         required: false
         default: ""
+      softdepend_plugins:
+        description: "额外安装的 softdepend 插件名，逗号分隔（GuizhanLibPlugin 始终安装）"
+        required: false
+        default: ""
+      extra_jars:
+        description: "自备 jar 下载直链，逗号分隔（替代/补充 extra-plugins/ 目录）"
+        required: false
+        default: ""
       minecraft_versions:
         description: "要测试的 MC 版本，逗号分隔"
         required: true
@@ -42,7 +50,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        mcver: ${{ fromJSON(format('["{0}"]', replace(github.event.inputs.minecraft_versions, ',', '","'))) }}
+        mcver: ${{ fromJSON(toJson(split(inputs.minecraft_versions, ','))) }}
     steps:
       - uses: actions/checkout@v4
 
@@ -56,11 +64,22 @@ jobs:
           distribution: temurin
           java-version: "21"
 
+      - name: 下载自备 jar
+        if: inputs.extra_jars != ''
+        run: |
+          mkdir -p plugins
+          IFS=',' read -ra URLS <<< "${{ inputs.extra_jars }}"
+          for u in "${URLS[@]}"; do
+            [ -z "$u" ] && continue
+            curl -sfL -o "plugins/$(basename "${u%%\?*}")" "$u"
+          done
+
       - name: 下载插件与依赖
         env:
           GUIZHAN_TOKEN: ${{ secrets.GUIZHAN_TOKEN }}
           PLUGIN_SLUG: ${{ inputs.plugin_slug }}
           PLUGIN_VERSION: ${{ inputs.plugin_version }}
+          SOFTDEPEND_INSTALL: ${{ inputs.softdepend_plugins }}
         run: bash scripts/resolve-plugin.sh "$PLUGIN_SLUG" "$PLUGIN_VERSION"
 
       - name: 开服测试

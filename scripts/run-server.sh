@@ -4,7 +4,7 @@
 # 产物: console.log + result.json（status: success | failure）
 set -euo pipefail
 
-MCVER="$1"
+MCVER="${1// /}"   # 逗号后带空格的输入（"1.20.4, 1.20.6"）会经 split 带出空格
 PLATFORM="${2:-paper}"
 START_TIMEOUT="${START_TIMEOUT:-600}"
 PLUGIN_NAME="${PLUGIN_NAME:-unknown}"
