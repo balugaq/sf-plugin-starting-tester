@@ -54,6 +54,7 @@ window.I18N = {
     sortDl: '按下载量', sortName: '按名称 A→Z',
     pgPrev: '‹ 上一页', pgNext: '下一页 ›', pgInfo: '第 {p} / {n} 页',
     dupMatrix: '⚠ 你上一次测试的插件与版本矩阵与此完全相同，可能是误触。确定要再测试一次吗？',
+    toastSelected: '🧪 已选 {n} 个插件，请在弹窗中确认测试参数',
     uaClose: '关闭'
   },
   'en': {
@@ -109,6 +110,7 @@ window.I18N = {
     sortDl: 'By downloads', sortName: 'By name A→Z',
     pgPrev: '‹ Prev', pgNext: 'Next ›', pgInfo: 'Page {p} / {n}',
     dupMatrix: '⚠ Your last test used exactly this plugin & version matrix — possibly a misclick. Run it again anyway?',
+    toastSelected: '🧪 {n} plugin(s) selected — confirm the parameters in the dialog',
     uaClose: 'Close'
   }
 };

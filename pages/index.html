@@ -273,6 +273,19 @@
   .ua-only-actions .ua-check, .ua-only-actions #uaBtn { display: none; }
   .ua-only-actions .ua-cancel { background: var(--accent); }
   footer.site { text-align: center; font-size: .8rem; margin: 1.5rem 0 .5rem; }
+
+  /* ---------- 顶部 toast ---------- */
+  #toast {
+    position: fixed; top: 14px; left: 50%; z-index: 50;
+    transform: translateX(-50%) translateY(-10px);
+    background: var(--bg-2); border: 1px solid var(--accent); color: var(--text-1);
+    padding: .55rem 1.1rem; border-radius: 8px; font-size: .85rem;
+    box-shadow: 0 6px 20px rgba(0,0,0,.35); max-width: 90vw;
+    opacity: 0; pointer-events: none;
+    transition: opacity .25s ease, transform .25s ease;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  #toast.err { border-color: var(--fail); color: #f2a09e; }
   @media (max-width: 520px) { .dialog .body ul { columns: 1; } }
 
   /* ---------- 记录表手机端卡片化 ---------- */
@@ -286,6 +299,9 @@
 </style>
 </head>
 <body>
+
+<!-- 顶部 toast -->
+<div id="toast" role="status"></div>
 
 <!-- 顶栏 -->
 <div class="topbar">
@@ -702,6 +718,18 @@ document.addEventListener('click', e => {
   if (!$('mcSel').contains(e.target)) $('mcSel').classList.remove('open');
 });
 
+/* ---------- 顶部 toast（点击开始测试等关键动作的即时反馈） ---------- */
+let toastTimer;
+function showToast(msg, isErr) {
+  const el = $('toast');
+  el.textContent = msg;
+  el.className = isErr ? 'err' : '';
+  void el.offsetWidth;   // 重置过渡：连续弹时从透明重新进入
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 3000);
+}
+
 /* ---------- ② 确认与触发 ---------- */
 /* 当前测试矩阵（插件集合 + MC 版本集合 + 平台），用于重复测试提示 */
 function currentMatrix() {
@@ -727,6 +755,7 @@ function openConfirm() {
     <p class="hint">${esc(t('confirmHint', { t: esc($('timeout').value) }))}</p>`;
   $('goMsg').textContent = '';
   $('mask').classList.add('show');
+  showToast(t('toastSelected', { n: slugs.length }));
 }
 
 /* 校验仓库与分支真实存在，返回确认后的分支名 */
@@ -789,9 +818,8 @@ async function doDispatch(ref) {
     });
     if (res.status !== 204) throw new Error(`HTTP ${res.status} ${(await res.text()).slice(0, 200)}`);
     localStorage.setItem('gz_last_matrix', currentMatrix());
-    go.textContent = t('triggered');
-    go.className = 'msg';
     $('mask').classList.remove('show');
+    showToast(t('triggered'));
     loadResults();
   } catch (e) {
     go.textContent = t('dispatchFail', { m: e.message }); go.className = 'msg err';
