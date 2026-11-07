@@ -1,0 +1,25 @@
+# 统一换行与二进制标记
+* text=auto
+
+# 脚本与配置强制 LF（bash 脚本带 CRLF 在 Linux runner 上会报错）
+*.sh   text eol=lf
+*.py   text eol=lf
+*.yml  text eol=lf
+*.yaml text eol=lf
+*.json text eol=lf
+*.md   text eol=lf
+*.html text eol=lf
+*.js   text eol=lf
+*.css  text eol=lf
+*.txt  text eol=lf
+
+# 二进制文件不做任何转换
+*.jar  binary
+*.zip  binary
+*.png  binary
+*.jpg  binary
+*.ico  binary
+*.gif  binary
+
+# 语言统计与 diff 体验
+*.min.js linguist-generated -diff
