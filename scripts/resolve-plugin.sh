@@ -84,7 +84,8 @@ download_plugin() {
 }
 
 read_deps() {  # $1 = depend | softdepend, $2 = jar 路径；兼容列表格式（- X）与行内格式（[X, Y]）
-  unzip -p "$2" plugin.yml | python3 -c "
+  # unzip 找不到 plugin.yml 时退出码 11，pipefail 会把它传成脚本退出码，必须吞掉
+  { unzip -p "$2" plugin.yml 2>/dev/null || true; } | python3 -c "
 import re, sys
 key, out, grab = sys.argv[1], [], False
 for line in sys.stdin:
@@ -137,7 +138,16 @@ for SLUG in $(echo "$SLUGS" | tr ',' ' '); do
     jq --arg s "$SLUG" '. + [{slug:$s, name:$s, jar:null, downloaded:false}]' "$MANIFEST" > "$MANIFEST.tmp" && mv "$MANIFEST.tmp" "$MANIFEST"
     continue
   fi
-  JAR=$(ls -t "$OUT_DIR"/*.jar | head -1)
+  # 最新下载的 jar 可能是无 plugin.yml 的附属产物（如 -all.jar），按新旧顺序挑第一个有效的
+  JAR=""
+  for cand in $(ls -t "$OUT_DIR"/*.jar 2>/dev/null); do
+    if unzip -l "$cand" plugin.yml >/dev/null 2>&1; then JAR="$cand"; break; fi
+  done
+  if [ -z "$JAR" ]; then
+    jq --arg s "$SLUG" '. + [{slug:$s, name:$s, jar:null, downloaded:false}]' "$MANIFEST" > "$MANIFEST.tmp" && mv "$MANIFEST.tmp" "$MANIFEST"
+    echo "警告: $SLUG 下载的 jar 均无 plugin.yml，跳过依赖解析"
+    continue
+  fi
   PNAME=$(unzip -p "$JAR" plugin.yml 2>/dev/null | awk '/^name:/{print $2}' | tr -d '\r')
   jq --arg s "$SLUG" --arg n "${PNAME:-$SLUG}" --arg j "$(basename "$JAR")" \
     '. + [{slug:$s, name:$n, jar:$j, downloaded:true}]' "$MANIFEST" > "$MANIFEST.tmp" && mv "$MANIFEST.tmp" "$MANIFEST"
