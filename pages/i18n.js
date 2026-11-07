@@ -1,5 +1,5 @@
 /* 控制台多语言文本：新增语言时加一个 key 相同的字典即可。
-   文本里有 {x} 占位符的，由 t(key, {x: val}) 填充。 */
+   文本里有 {x} 占位符的，由 index.html 里的 t(key, {x: val}) 填充。 */
 window.I18N = {
   'zh-CN': {
     title: '🧪 插件兼容性测试控制台',
@@ -103,22 +103,4 @@ window.I18N = {
     colTime: 'Time', colRun: 'Run', colStatus: 'Status & actions',
     conflictBtn: '✕ Unselect {s}', conflictWith: 'conflicts with {s}'
   }
-};
-
-window.t = function (key, vars) {
-  const lang = localStorage.getItem('gz_lang') || 'zh-CN';
-  let s = (window.I18N[lang] && window.I18N[lang][key]) ?? window.I18N['zh-CN'][key] ?? key;
-  if (vars) for (const [k, v] of Object.entries(vars)) s = s.replaceAll(`{${k}}`, v);
-  return s;
-};
-
-/* 扫描 data-i18n / data-i18n-html / data-i18n-ph 并应用当前语言 */
-window.applyI18n = function () {
-  const lang = localStorage.getItem('gz_lang') || 'zh-CN';
-  document.documentElement.lang = lang === 'en' ? 'en' : 'zh-CN';
-  document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
-  document.querySelectorAll('[data-i18n-html]').forEach(el => { el.innerHTML = t(el.dataset.i18nHtml); });
-  document.querySelectorAll('[data-i18n-ph]').forEach(el => { el.placeholder = t(el.dataset.i18nPh); });
-  const btn = document.getElementById('btnLang');
-  if (btn) btn.textContent = t('langBtn');
 };
