@@ -26,12 +26,19 @@ fi
 [ -x "$JAVA_BIN" ] || JAVA_BIN="java"
 echo "使用 Java $JAVA_VER ($JAVA_BIN)"
 
-# Paper 下载（fill.papermc.io v3 API）
+# Paper 下载（fill.papermc.io v3 API），带本地缓存（workflow 用 .paper-cache 做 Actions cache）
+CACHE_JAR=".paper-cache/server-$PLATFORM-$MCVER.jar"
 BUILD_JSON=$(curl -sf "https://fill.papermc.io/v3/projects/$PLATFORM/versions/$MCVER/builds/latest")
 SERVER_URL=$(echo "$BUILD_JSON" | jq -r '.downloads["server:default"].url')
 [ -n "$SERVER_URL" ] && [ "$SERVER_URL" != "null" ] || { echo "找不到 $PLATFORM $MCVER 的服务端构建"; exit 1; }
-curl -sfL -o server.jar "$SERVER_URL"
-echo "已下载 $PLATFORM $MCVER 服务端"
+if [ -s "$CACHE_JAR" ]; then
+  cp "$CACHE_JAR" server.jar
+  echo "命中服务端缓存: $CACHE_JAR"
+else
+  curl -sfL -o server.jar "$SERVER_URL"
+  mkdir -p .paper-cache && cp server.jar "$CACHE_JAR"
+  echo "已下载 $PLATFORM $MCVER 服务端（已写入缓存）"
+fi
 
 echo "eula=true" > eula.txt
 cat > server.properties <<EOF

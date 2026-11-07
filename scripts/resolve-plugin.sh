@@ -9,6 +9,7 @@ set -euo pipefail
 
 API="https://resources.guizhanss.com/api/v1"
 OUT_DIR="plugins"
+GZ_CACHE=".gzcache"   # 资源站 jar 下载缓存，workflow 按 7 天窗口做 Actions cache
 mkdir -p "$OUT_DIR"
 
 api() {
@@ -28,12 +29,20 @@ download_version() {
   local detail
   detail=$(api "/versions/$version_id")
   echo "$detail" | jq -c '.data.files[]?' | while read -r f; do
-    local fid fname
+    local fid fname cache_file
     fid=$(echo "$f" | jq -r '.id')
     fname=$(echo "$f" | jq -r '.name')
     [ -z "$fid" ] || [ "$fid" = "null" ] && continue
-    echo "下载文件: $fname"
-    curl -sfL -o "$OUT_DIR/$fname" "$API/projects/$project_id/versions/$version_id/download/$fid"
+    # 缓存键用文件 id（唯一），文件名里的空格/斜杠替换掉只为了可读
+    cache_file="$GZ_CACHE/${fid}__$(echo "$fname" | tr '/ ' '__')"
+    if [ -s "$cache_file" ]; then
+      echo "命中缓存: $fname"
+      cp "$cache_file" "$OUT_DIR/$fname"
+    else
+      echo "下载文件: $fname"
+      curl -sfL -o "$OUT_DIR/$fname" "$API/projects/$project_id/versions/$version_id/download/$fid"
+      mkdir -p "$GZ_CACHE" && cp "$OUT_DIR/$fname" "$cache_file"
+    fi
     local expect
     expect=$(echo "$f" | jq -r '.checksum.sha256 // empty')
     if [ -n "$expect" ]; then

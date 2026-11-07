@@ -64,6 +64,25 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # cache key 带时间窗（unix 时间整除）：窗口一过 key 变化，旧缓存不再被
+      # 访问，GitHub 对 7 天未访问的条目自动驱逐——等效 TTL 过期，释放额度。
+      - name: 计算缓存时间窗
+        run: |
+          echo "EPOCH7=$(( $(date +%s) / 604800 ))"   >> "$GITHUB_ENV"   # 7 天
+          echo "EPOCH14=$(( $(date +%s) / 1209600 ))" >> "$GITHUB_ENV"  # 14 天
+
+      - name: 缓存资源站 jar（7 天窗口）
+        uses: actions/cache@v4
+        with:
+          path: .gzcache
+          key: gz-jars-${{ env.EPOCH7 }}
+
+      - name: 缓存服务端 jar（14 天窗口）
+        uses: actions/cache@v4
+        with:
+          path: .paper-cache
+          key: server-${{ inputs.platform }}-${{ matrix.mcver }}-${{ env.EPOCH14 }}
+
       - uses: actions/setup-java@v6
         with:
           distribution: temurin
