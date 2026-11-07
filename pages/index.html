@@ -8,44 +8,60 @@
   :root { color-scheme: dark; }
   * { box-sizing: border-box; }
   body { font-family: system-ui, sans-serif; background: #11151c; color: #e6e6e6;
-         max-width: 860px; margin: 0 auto; padding: 1.5rem 1rem 4rem; }
+         max-width: 960px; margin: 0 auto; padding: 1.5rem 1rem 5rem; }
   h1 { font-size: 1.3rem; }
-  h2 { font-size: 1.05rem; margin-top: 2rem; color: #9ab; }
+  h2 { font-size: 1.05rem; margin: 0 0 .6rem; color: #9ab; }
   .card { background: #1a1f29; border: 1px solid #2c3442; border-radius: 10px; padding: 1rem 1.2rem; margin-bottom: 1rem; }
-  label { display: block; font-size: .82rem; color: #8fa; margin: .7rem 0 .25rem; }
-  input, select { width: 100%; padding: .45rem .6rem; border-radius: 6px; border: 1px solid #3a4353;
-                  background: #11151c; color: #e6e6e6; font-size: .9rem; }
+  label { display: block; font-size: .8rem; color: #8fa; margin: .6rem 0 .2rem; }
+  input, select { width: 100%; padding: .4rem .55rem; border-radius: 6px; border: 1px solid #3a4353;
+                  background: #11151c; color: #e6e6e6; font-size: .88rem; }
   .row { display: flex; gap: .8rem; }
   .row > div { flex: 1; }
   button { background: #2d6cdf; color: #fff; border: 0; border-radius: 6px;
-           padding: .55rem 1.2rem; font-size: .95rem; cursor: pointer; margin-top: 1rem; }
+           padding: .5rem 1.1rem; font-size: .9rem; cursor: pointer; }
   button:hover { background: #3d7cf0; }
   button:disabled { background: #445; cursor: wait; }
-  .hint { font-size: .78rem; color: #778; margin-top: .3rem; }
+  button.ghost { background: #2c3442; }
+  .hint { font-size: .76rem; color: #778; margin-top: .3rem; }
   .token-note { background: #2a2313; border: 1px solid #66551f; border-radius: 6px;
-                padding: .5rem .8rem; font-size: .8rem; color: #d9c26a; }
-  table { width: 100%; border-collapse: collapse; font-size: .88rem; }
-  th, td { text-align: left; padding: .45rem .5rem; border-bottom: 1px solid #262d3a; }
+                padding: .45rem .8rem; font-size: .78rem; color: #d9c26a; }
+  table { width: 100%; border-collapse: collapse; font-size: .86rem; }
+  th, td { text-align: left; padding: .4rem .5rem; border-bottom: 1px solid #262d3a; }
   th { color: #8fa; font-weight: 500; }
-  .badge { display: inline-block; border-radius: 4px; padding: .1rem .5rem; font-size: .78rem; color: #fff; margin: 1px; }
+  .badge { display: inline-block; border-radius: 4px; padding: .08rem .45rem; font-size: .75rem; color: #fff; margin: 1px 2px 1px 0; }
   .ok { background: #0a7d32; } .fail { background: #c62828; }
   .run { background: #b58a2c; } .queue { background: #556; }
   a { color: #6db3f2; text-decoration: none; }
-  .msg { font-size: .85rem; margin-top: .8rem; color: #9ab; white-space: pre-wrap; }
+  .msg { font-size: .84rem; margin-top: .8rem; color: #9ab; white-space: pre-wrap; }
   .err { color: #f2a09e; }
+  #list { max-height: 360px; overflow-y: auto; }
+  #list .item { display: flex; align-items: center; gap: .6rem; padding: .3rem; border-bottom: 1px solid #232a36; }
+  #list .item input[type=checkbox] { width: auto; }
+  #list .meta { color: #778; font-size: .76rem; }
+  .sticky-bar { position: sticky; bottom: .6rem; display: flex; gap: 1rem; align-items: center;
+                background: #16202f; border: 1px solid #2d6cdf; border-radius: 8px; padding: .55rem 1rem; }
+  #mask { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: none;
+          align-items: center; justify-content: center; z-index: 10; }
+  #mask.show { display: flex; }
+  #confirm { background: #1a1f29; border: 1px solid #2d6cdf; border-radius: 10px;
+             max-width: 640px; width: 92%; max-height: 80vh; overflow-y: auto; padding: 1.2rem; }
+  #confirm ul { max-height: 260px; overflow-y: auto; font-size: .84rem; padding-left: 1.2rem; }
+  #confirm .actions { display: flex; gap: .8rem; margin-top: 1rem; }
+  .btn-danger { background: #c62828; }
 </style>
 </head>
 <body>
 <h1>🧪 插件兼容性测试控制台</h1>
-<p class="hint">选择附属插件与 MC 版本，触发 GitHub Actions 开服测试，结果直接显示在下方。仅覆盖启动阶段判定。</p>
+<p class="hint">从鬼斩资源站勾选附属（支持批量上百个），一次开服同时测试所有插件的启动兼容性。仅覆盖启动阶段判定。</p>
 
 <div class="card">
-  <div class="token-note">首次使用需要个人访问令牌（fine-grained PAT）：仅勾选本仓库的 <b>Actions: Read and write</b> 权限，
-    在 <a href="https://github.com/settings/personal-access-tokens/new" target="_blank">GitHub Token 设置</a>生成。
-    Token 只保存在你浏览器的 localStorage，不经过任何第三方。</div>
-  <label>GitHub Token</label>
-  <input id="token" type="password" placeholder="github_pat_...">
+  <div class="token-note">首次使用需要 fine-grained PAT：仅勾选本仓库的 <b>Actions: Read and write</b>，
+    在 <a href="https://github.com/settings/personal-access-tokens/new" target="_blank">GitHub Token 设置</a>生成。Token 只存浏览器 localStorage。</div>
   <div class="row">
+    <div>
+      <label>GitHub Token *</label>
+      <input id="token" type="password" placeholder="github_pat_...">
+    </div>
     <div>
       <label>仓库（owner/repo，留空自动识别）</label>
       <input id="repo" placeholder="自动">
@@ -58,142 +74,202 @@
 </div>
 
 <div class="card">
-  <h2 style="margin-top:0">新建测试</h2>
+  <h2>① 选择插件 <button class="ghost" style="float:right;padding:.15rem .6rem;font-size:.78rem" onclick="loadCatalog(true)">刷新目录</button></h2>
+  <input id="search" placeholder="🔍 搜索名称 / 简介…" oninput="renderList()">
+  <div id="list" style="margin-top:.6rem"><span class="hint">填好 Token 后自动加载目录</span></div>
+  <div class="sticky-bar">
+    <span id="selCount">已选 0 个插件</span>
+    <button class="ghost" onclick="sel.clear();renderList()">清空选择</button>
+    <span style="flex:1"></span>
+    <button onclick="openConfirm()">开始测试 ▶</button>
+  </div>
+</div>
+
+<div class="card">
+  <h2>② 测试参数</h2>
   <div class="row">
     <div>
-      <label>附属插件 slug *</label>
-      <input id="slug" placeholder="如 ExoticGarden">
+      <label>插件版本（应用到全部，留空 = 最新）</label>
+      <input id="ver" placeholder="留空">
     </div>
     <div>
-      <label>版本（留空 = 最新）</label>
-      <input id="ver" placeholder="留空">
+      <label>服务端平台</label>
+      <select id="platform"><option>paper</option><option>purpur</option><option>folia</option></select>
     </div>
   </div>
   <div class="row">
     <div>
-      <label>MC 版本（逗号分隔）*</label>
-      <input id="mcvers" value="1.21.4,1.20.4">
+      <label>MC 版本（逗号分隔，每个版本一次开服）*</label>
+      <input id="mcvers" value="1.21.4">
     </div>
     <div>
-      <label>平台</label>
-      <select id="platform">
-        <option>paper</option><option>purpur</option><option>folia</option>
-      </select>
+      <label>开服超时秒数（插件多时调大）</label>
+      <input id="timeout" value="900">
     </div>
   </div>
   <label>额外安装的 softdepend（逗号分隔，GuizhanLibPlugin 自动装）</label>
   <input id="softdep" placeholder="留空">
-  <label>自备 jar 直链（逗号分隔，可选）</label>
-  <input id="extrajars" placeholder="留空">
-  <button id="runBtn" onclick="trigger()">▶ 触发测试</button>
-  <div id="msg" class="msg"></div>
 </div>
 
+<h2>③ 测试记录</h2>
 <div class="card">
-  <h2 style="margin-top:0">测试记录 <button style="float:right;margin:0;padding:.2rem .7rem;font-size:.8rem" onclick="loadRuns()">刷新</button></h2>
+  <div style="display:flex;gap:.8rem;align-items:center;margin-bottom:.4rem">
+    <button class="ghost" style="padding:.15rem .6rem;font-size:.78rem" onclick="loadResults()">刷新</button>
+    <span class="hint">每个 MC 版本对应一条记录；HTML 报告（每个插件的 ✔/✘ 与报错）部署在 Pages 的 report.html，随最近一次测试更新</span>
+  </div>
   <table>
-    <thead><tr><th>时间</th><th>插件</th><th>各版本结果</th><th>状态</th><th>链接</th></tr></thead>
-    <tbody id="runs"><tr><td colspan="5" class="hint">加载中…</td></tr></tbody>
+    <thead><tr><th>时间</th><th>测试</th><th>状态</th><th>链接</th></tr></thead>
+    <tbody id="results"><tr><td colspan="4" class="hint">等待触发测试后显示</td></tr></tbody>
   </table>
 </div>
 
+<div id="mask">
+  <div id="confirm">
+    <h2>确认开始测试</h2>
+    <div id="confirmBody"></div>
+    <div class="actions">
+      <button class="ghost" onclick="$('mask').classList.remove('show')">取消</button>
+      <button class="btn-danger" id="goBtn" onclick="startBatch()">🚀 正式开始</button>
+    </div>
+    <div id="goMsg" class="msg"></div>
+  </div>
+</div>
+
 <script>
-const API = 'https://api.github.com';
+const GH = 'https://api.github.com';
+const SITE = 'https://resources.guizhanss.com/api/v1';
 const WF = 'test-compatibility.yml';
 const $ = id => document.getElementById(id);
+
 $('token').value = localStorage.getItem('gh_pat') || '';
 $('repo').placeholder = guessRepo() || 'owner/repo';
 
 function guessRepo() {
   const p = location.pathname.split('/').filter(Boolean);
-  // 项目 Pages: /{repo}/；本地: 手填
-  return p.length >= 2 ? p.slice(0, 2).join('/') : (p.length === 1 ? p[0] : '');
+  return p.length >= 2 ? p.slice(0, 2).join('/') : '';
 }
-
 function repoPath() {
   const r = $('repo').value.trim() || guessRepo();
   if (!r || !r.includes('/')) throw new Error('仓库标识无效，请填 owner/repo');
   return r;
 }
-
-function headers() {
+function ghHeaders() {
   const t = $('token').value.trim();
   if (!t) throw new Error('请先填 GitHub Token');
   localStorage.setItem('gh_pat', t);
   return { Authorization: `Bearer ${t}`, Accept: 'application/vnd.github+json' };
 }
 
-async function trigger() {
-  const msg = $('msg'), btn = $('runBtn');
+/* ---------- ① 插件目录 ---------- */
+let CATALOG = null;
+const sel = new Set();
+
+async function loadCatalog(force) {
+  const cached = CATALOG && !force && (Date.now() - CATALOG.fetchedAt < 3600e3);
+  if (cached) { renderList(); return; }
+  $('list').innerHTML = '<span class="hint">加载目录中…</span>';
   try {
-    btn.disabled = true; msg.textContent = '提交中…'; msg.className = 'msg';
-    const inputs = {
-      plugin_slug: $('slug').value.trim(),
-      plugin_version: $('ver').value.trim(),
-      minecraft_versions: $('mcvers').value.trim(),
-      platform: $('platform').value,
-      softdepend_plugins: $('softdep').value.trim(),
-      extra_jars: $('extrajars').value.trim(),
-    };
-    if (!inputs.plugin_slug) throw new Error('请填插件 slug');
-    if (!inputs.minecraft_versions) throw new Error('请填 MC 版本');
-    const res = await fetch(`${API}/repos/${repoPath()}/actions/workflows/${WF}/dispatches`, {
-      method: 'POST', headers: headers(), body: JSON.stringify({ ref: $('ref').value.trim() || 'main', inputs })
-    });
-    if (res.status !== 204) throw new Error(`触发失败: HTTP ${res.status} ${(await res.text()).slice(0, 200)}`);
-    msg.textContent = '✅ 已触发，等待 Actions 接单（下方列表 15 秒后自动刷新）';
-    setTimeout(loadRuns, 15000);
+    const first = await (await fetch(`${SITE}/projects?page_size=50&page=1`)).json();
+    const total = first.pagination?.total_items ?? first.data.length;
+    const items = [...first.data];
+    for (let p = 2; p <= Math.ceil(total / 50); p++) {
+      const d = await (await fetch(`${SITE}/projects?page_size=50&page=${p}`)).json();
+      items.push(...d.data);
+    }
+    CATALOG = { fetchedAt: Date.now(), items };
+    localStorage.setItem('catalog', JSON.stringify(CATALOG));
+    renderList();
   } catch (e) {
-    msg.textContent = e.message; msg.className = 'msg err';
+    $('list').innerHTML = `<span class="err">目录加载失败: ${e.message}</span>`;
+  }
+}
+
+function renderList() {
+  const q = $('search').value.trim().toLowerCase();
+  const items = (CATALOG?.items || []).filter(p =>
+    !q || p.name?.toLowerCase().includes(q) || p.slug.toLowerCase().includes(q) || p.summary?.toLowerCase().includes(q));
+  const el = $('list');
+  if (!items.length) { el.innerHTML = '<span class="hint">无匹配项</span>'; return; }
+  el.innerHTML = items.map(p => `
+    <div class="item">
+      <input type="checkbox" ${sel.has(p.slug) ? 'checked' : ''} onchange="toggleSel('${p.slug}', this.checked)">
+      <div style="flex:1;min-width:0">
+        <div><b>${p.name || p.slug}</b> <span class="meta">@${p.slug} · ↓${p.downloads ?? 0}</span></div>
+        <div class="meta">${(p.summary || '').slice(0, 80)}</div>
+      </div>
+    </div>`).join('');
+  $('selCount').textContent = `已选 ${sel.size} 个插件`;
+}
+function toggleSel(slug, on) { on ? sel.add(slug) : sel.delete(slug); renderList(); }
+
+/* ---------- ② 确认与触发（单次 dispatch，一次开服装全部） ---------- */
+function openConfirm() {
+  if (!sel.size) { alert('请先勾选至少一个插件'); return; }
+  const mc = $('mcvers').value.trim();
+  if (!mc) { alert('请填 MC 版本'); return; }
+  const slugs = [...sel];
+  $('confirmBody').innerHTML = `
+    <p>一次开服同时测试 <b>${slugs.length}</b> 个插件，MC 版本 <b>${mc}</b>，平台 <b>${$('platform').value}</b>。</p>
+    <ul>${slugs.map(s => `<li>${s}</li>`).join('')}</ul>
+    <p class="hint">插件多时启动时间长，超时已按参数设置（${$('timeout').value}s）。若个别插件依赖互相冲突，整批可能受影响，建议分批测试。</p>`;
+  $('mask').classList.add('show');
+}
+
+async function startBatch() {
+  const go = $('goMsg'), btn = $('goBtn');
+  btn.disabled = true;
+  try {
+    const res = await fetch(`${GH}/repos/${repoPath()}/actions/workflows/${WF}/dispatches`, {
+      method: 'POST', headers: ghHeaders(),
+      body: JSON.stringify({
+        ref: $('ref').value.trim() || 'main',
+        inputs: {
+          plugin_slugs: [...sel].join(','),
+          plugin_version: $('ver').value.trim(),
+          minecraft_versions: $('mcvers').value.trim(),
+          platform: $('platform').value,
+          softdepend_plugins: $('softdep').value.trim(),
+          extra_jars: '',
+          start_timeout: $('timeout').value.trim() || '900',
+        }
+      })
+    });
+    if (res.status !== 204) throw new Error(`HTTP ${res.status} ${(await res.text()).slice(0, 200)}`);
+    go.textContent = '✅ 已触发！等待开服测试完成（见下方测试记录，20 秒自动刷新）。';
+    $('mask').classList.remove('show');
+    loadResults();
+  } catch (e) {
+    go.textContent = `✘ 触发失败: ${e.message}`; go.className = 'msg err';
   } finally { btn.disabled = false; }
 }
 
-const badge = (cls, text) => `<span class="badge ${cls}">${text}</span>`;
-
-function renderJobs(jobs) {
-  return jobs.jobs.map(j => {
-    const mc = j.name.replace(/^MC /, '');
-    const cls = j.conclusion === 'success' ? 'ok' : j.conclusion === 'failure' ? 'fail' : 'run';
-    return badge(cls, `${mc} ${j.conclusion === 'success' ? '✔' : j.conclusion === 'failure' ? '✘' : '…'}`);
-  }).join(' ') || '<span class="hint">排队中</span>';
-}
-
-async function loadRuns() {
-  const tbody = $('runs');
+/* ---------- ③ 测试记录 ---------- */
+async function loadResults() {
+  const tbody = $('results');
   try {
-    const res = await fetch(`${API}/repos/${repoPath()}/actions/workflows/${WF}/runs?per_page=15`, { headers: headers() });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const res = await fetch(`${GH}/repos/${repoPath()}/actions/workflows/${WF}/runs?per_page=15`, { headers: ghHeaders() });
+    if (!res.ok) throw new Error(`GitHub API ${res.status}`);
     const runs = (await res.json()).workflow_runs;
-    tbody.innerHTML = '';
+    let html = '';
     for (const r of runs) {
-      const tr = document.createElement('tr');
-      let jobs = '<span class="hint">-</span>';
-      if (r.status !== 'completed' || r.run_number > (runs.length > 1 ? 2 : 1)) {
-        try {
-          const jr = await fetch(`${API}/repos/${repoPath()}/actions/runs/${r.id}/jobs?per_page=30`, { headers: headers() });
-          if (jr.ok) jobs = renderJobs(await jr.json());
-        } catch (_) {}
-      }
-      tr.innerHTML = `
+      const badge = r.status === 'completed'
+        ? `<span class="badge ${r.conclusion === 'success' ? 'ok' : 'fail'}">${r.conclusion === 'success' ? '完成' : '失败'}</span>`
+        : `<span class="badge run">${r.status === 'queued' ? '排队' : '运行中'}</span>`;
+      html += `<tr>
         <td>${new Date(r.created_at).toLocaleString('zh-CN', { hour12: false })}</td>
-        <td>${r.display_title || '-'}</td>
-        <td>${jobs}</td>
-        <td>${r.status === 'completed'
-              ? badge(r.conclusion === 'success' ? 'ok' : 'fail', r.conclusion === 'success' ? '完成' : '失败')
-              : badge('run', r.status === 'queued' ? '排队' : '运行中')}</td>
-        <td><a href="${r.html_url}" target="_blank">日志</a></td>`;
-      tbody.appendChild(tr);
+        <td>#${r.run_number}</td>
+        <td>${badge}${r.status !== 'completed' ? '<span class="hint"> 完成后结果展示在 report.html</span>' : ''}</td>
+        <td><a href="${r.html_url}" target="_blank">日志</a></td></tr>`;
     }
-    if (!runs.length) tbody.innerHTML = '<tr><td colspan="5" class="hint">还没有运行记录</td></tr>';
+    tbody.innerHTML = html || '<tr><td colspan="4" class="hint">还没有运行记录</td></tr>';
   } catch (e) {
-    tbody.innerHTML = `<tr><td colspan="5" class="err">${e.message}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="4" class="err">${e.message}</td></tr>`;
   }
-  // 有未完成的 run 时持续轮询
-  clearTimeout(loadRuns._t);
-  loadRuns._t = setTimeout(loadRuns, 15000);
+  clearTimeout(loadResults._t);
+  loadResults._t = setTimeout(loadResults, 20000);
 }
 
-loadRuns();
+if ($('token').value.trim()) { loadCatalog(); loadResults(); }
 </script>
 </body>
 </html>

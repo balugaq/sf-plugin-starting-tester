@@ -5,8 +5,8 @@ name: Plugin Compatibility Test
 on:
   workflow_dispatch:
     inputs:
-      plugin_slug:
-        description: "资源站项目 slug（如 infinity-machines）"
+      plugin_slugs:
+        description: "资源站项目 slug，逗号分隔多个（一次开服全部测试）"
         required: true
       plugin_version:
         description: "版本号（留空 = 最新 release）"
@@ -87,15 +87,13 @@ jobs:
       - name: 下载插件与依赖
         env:
           GUIZHAN_TOKEN: ${{ secrets.GUIZHAN_TOKEN }}
-          PLUGIN_SLUG: ${{ inputs.plugin_slug }}
+          PLUGIN_SLUGS: ${{ inputs.plugin_slugs }}
           PLUGIN_VERSION: ${{ inputs.plugin_version }}
           SOFTDEPEND_INSTALL: ${{ inputs.softdepend_plugins }}
-        run: bash scripts/resolve-plugin.sh "$PLUGIN_SLUG" "$PLUGIN_VERSION"
+        run: bash scripts/resolve-plugin.sh "$PLUGIN_SLUGS" "$PLUGIN_VERSION"
 
       - name: 开服测试
         env:
-          PLUGIN_SLUG: ${{ inputs.plugin_slug }}
-          PLUGIN_VERSION: ${{ inputs.plugin_version }}
           START_TIMEOUT: ${{ inputs.start_timeout }}
         run: bash scripts/run-server.sh "${{ matrix.mcver }}" "${{ inputs.platform }}"
 
@@ -110,7 +108,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-result-${{ matrix.mcver }}
+          name: t-batch-${{ matrix.mcver }}
           path: results/
 
   report:
@@ -127,7 +125,7 @@ jobs:
       - name: 收集各版本结果
         uses: actions/download-artifact@v4
         with:
-          pattern: test-result-*
+          pattern: t-*
           path: artifacts/
 
       - name: 合并结果文件

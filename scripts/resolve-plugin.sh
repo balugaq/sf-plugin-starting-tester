@@ -83,8 +83,8 @@ download_plugin() {
   download_version "$pid" "$vid"
 }
 
-read_deps() {  # $1 = depend | softdepend；兼容列表格式（- X）与行内格式（[X, Y]）
-  unzip -p "$MAIN_JAR" plugin.yml | python3 -c "
+read_deps() {  # $1 = depend | softdepend, $2 = jar 路径；兼容列表格式（- X）与行内格式（[X, Y]）
+  unzip -p "$2" plugin.yml | python3 -c "
 import re, sys
 key, out, grab = sys.argv[1], [], False
 for line in sys.stdin:
@@ -121,31 +121,67 @@ download_dep() {
   download_plugin "$dep_slug"
 }
 
-# ---- 主流程 ----
-SLUG="$1"
-VER="${2:-}"
-download_plugin "$SLUG" "$VER"
+# ---- 主流程：批量模式，逗号分隔多个 slug，一次开服全部测 ----
+SLUGS="$1"
 
-MAIN_JAR=$(ls -t "$OUT_DIR"/*.jar | head -1)
-PLUGIN_NAME=$(unzip -p "$MAIN_JAR" plugin.yml | awk '/^name:/{print $2}' | tr -d '\r')
-echo "主插件: $PLUGIN_NAME"
+# manifest 记录被测插件的 slug→plugin.yml name 映射，供开服后逐插件判定（name 与 slug 可能不同）
+MANIFEST="$OUT_DIR/manifest.json"
+echo "[]" > "$MANIFEST"
 
-# 硬依赖全装（含 Slimefun4 —— 它就在资源站上）
-for dep in $(read_deps depend); do
-  download_dep "$dep"
-done
-
-# 软依赖：GuizhanLibPlugin 必装，其余按用户勾选
-SOFT_SELECTED=",${SOFTDEPEND_INSTALL:-},"
-for dep in $(read_deps softdepend); do
-  if [ "$dep" = "GuizhanLibPlugin" ] || [[ "$SOFT_SELECTED" == *",$dep,"* ]]; then
-    download_dep "$dep"
+for SLUG in $(echo "$SLUGS" | tr ',' ' '); do
+  [ -z "$SLUG" ] && continue
+  echo "===== $SLUG ====="
+  BEFORE=$(ls "$OUT_DIR" 2>/dev/null | grep -c '\.jar$' || true)
+  if ! download_plugin "$SLUG" "${2:-}"; then
+    # 记录下载失败，报告里如实展示
+    jq --arg s "$SLUG" '. + [{slug:$s, name:$s, jar:null, downloaded:false}]' "$MANIFEST" > "$MANIFEST.tmp" && mv "$MANIFEST.tmp" "$MANIFEST"
+    continue
   fi
+  JAR=$(ls -t "$OUT_DIR"/*.jar | head -1)
+  PNAME=$(unzip -p "$JAR" plugin.yml 2>/dev/null | awk '/^name:/{print $2}' | tr -d '\r')
+  jq --arg s "$SLUG" --arg n "${PNAME:-$SLUG}" --arg j "$(basename "$JAR")" \
+    '. + [{slug:$s, name:$n, jar:$j, downloaded:true}]' "$MANIFEST" > "$MANIFEST.tmp" && mv "$MANIFEST.tmp" "$MANIFEST"
+
+  # 依赖解析只针对被测插件本体（依赖的依赖不递归，走 extra-plugins/ 自备）
+  for dep in $(read_deps depend "$JAR"); do
+    download_dep "$dep"
+  done
+  SOFT_SELECTED=",${SOFTDEPEND_INSTALL:-},"
+  for dep in $(read_deps softdepend "$JAR"); do
+    if [ "$dep" = "GuizhanLibPlugin" ] || [[ "$SOFT_SELECTED" == *",$dep,"* ]]; then
+      download_dep "$dep"
+    fi
+  done
 done
+
+# 同名依赖被多个插件重复下载时按插件名去重：只保留每个 plugin.yml name 的最新 jar
+python3 - "$OUT_DIR" <<'EOF'
+import json, glob, os, zipfile, sys
+d = sys.argv[1]
+keep = {}
+for j in glob.glob(os.path.join(d, "*.jar")):
+    try:
+        with zipfile.ZipFile(j) as z:
+            name = z.read("plugin.yml").decode("utf-8", "ignore")
+    except Exception:
+        os.remove(j)  # 连 plugin.yml 都没有的 jar 装上也无效
+        continue
+    m = None
+    for line in name.splitlines():
+        if line.startswith("name:"):
+            m = line.split(":", 1)[1].strip().strip("'\"").strip("\r")
+            break
+    if m:
+        keep.setdefault(m, []).append(j)
+for name, jars in keep.items():
+    for old in sorted(jars, key=os.path.getmtime)[:-1]:
+        os.remove(old)  # 同名只留最新一份，避免 Bukkit 报 duplicate plugin
+EOF
 
 # 用户自备 jar（解决依赖的依赖等特殊场景）
 if [ -d extra-plugins ]; then
   cp extra-plugins/*.jar "$OUT_DIR"/ 2>/dev/null || true
 fi
 
-echo "PLUGIN_NAME=$PLUGIN_NAME" >> "${GITHUB_ENV:-/dev/null}"
+echo "最终插件清单: $(ls "$OUT_DIR"/*.jar | wc -l) 个 jar"
+jq -r '.[] | "\(.slug) -> \(.name)"' "$MANIFEST" || true
