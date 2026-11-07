@@ -13,8 +13,17 @@
 
 ## 如何使用
 
-1. **Fork 本仓库**，并在 fork 仓库的 **Actions 标签页点一下启用**（fork 默认禁用 Actions）。
-2. **Actions → Plugin Compatibility Test → Run workflow**，填参数：
+有两种触发方式，效果相同：
+
+### 方式一：网页控制台（推荐）
+
+Fork 后开启 Pages（Settings → Pages → Source 选 **GitHub Actions**），访问 `https://<你的用户名>.github.io/<仓库名>/` 即是测试控制台：
+
+1. 填一次 fine-grained PAT（只勾选本仓库的 **Actions: Read and write**，存浏览器 localStorage，不经过第三方）；
+2. 填插件 slug、MC 版本、平台等，点 **触发测试**；
+3. 页面自动轮询并显示每个 MC 版本的 ✔/✘ 结果，日志直达 GitHub run 页；每次测试的 HTML 报告也会部署在 Pages 的 `report.html`。
+
+### 方式二：手动触发 workflow
 
    | 参数 | 说明 | 示例 |
    |---|---|---|
@@ -25,11 +34,10 @@
    | minecraft_versions | 逗号分隔的 MC 版本 | `1.21.4,1.20.6,1.20.4` |
    | platform | 服务端平台 | `paper` |
    | start_timeout | 单次开服超时秒数 | `600` |
-   | publish_pages | 勾选则把报告发布到 Pages | `false` |
 
 **补装依赖的依赖等特殊 jar 有两个途径**：把 jar 提交到 fork 仓库的 `extra-plugins/` 目录（会原样拷进 `plugins/`），或在 `extra_jars` 输入里给下载直链。`softdepend` 默认不装（避免无关前置干扰判定），`GuizhanLibPlugin` 例外——它是必装前置，勾不勾都会自动安装。
 
-3. 跑完后在本次运行页面下载 **compatibility-report** artifact，解压打开 `report.html`；或勾选 publish_pages 后到仓库 Pages 设置开启托管，直接用链接看。
+3. 跑完后每个 MC 版本的 ✔/✘ 结论显示在控制台页面（或 run 页面），HTML 报告自动部署到 Pages 的 `report.html`，完整 console 日志在 run 页或 `compatibility-report` artifact 里。
 4. （可选）在仓库 Settings → Secrets 添加 `GUIZHAN_TOKEN`（在资源站 settings/tokens 生成），可获得更高的 API 额度；不填也能测公开插件。
 
 注意：`workflow_dispatch` 只对**默认分支**上的 workflow 生效，改动 workflow 文件后记得合到默认分支。
@@ -49,7 +57,8 @@
 ## 文件结构
 
 ```
-.github/workflows/test-compatibility.yml   # 入口工作流（dispatch → 矩阵测试 → 报告）
+.github/workflows/test-compatibility.yml   # 入口工作流（dispatch → 矩阵测试 → 报告 + Pages）
+pages/index.html                           # 网页控制台（触发测试、展示各版本结果）
 scripts/resolve-plugin.sh                  # 资源站下载 + depend/softdepend 依赖解析
 scripts/run-server.sh                      # JDK 选择、Paper 下载、开服与成败判定
 scripts/build-report.py                    # result-*.json → report.html
