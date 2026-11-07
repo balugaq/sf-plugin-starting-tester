@@ -1,70 +1,54 @@
+<div align="center">
+
 # sf-plugin-starting-tester
 
-在 GitHub Actions 上自动测试 Minecraft 插件能否正常启动——fork 这个仓库，填入鬼斩资源站的项目 slug 和 MC 版本，跑完得到一份 HTML 报告（每个版本 ✔ 启动成功 / ✘ 启动失败 + 具体报错），全程不需要自己开服。
+**快速测试粘液附属在特定版本上能否运行**
 
-## 这是什么
+[![CI 测试](https://github.com/balugaq/sf-plugin-starting-tester/actions/workflows/test-compatibility.yml/badge.svg)](https://github.com/balugaq/sf-plugin-starting-tester/actions/workflows/test-compatibility.yml)
+[![Stars](https://img.shields.io/github/stars/balugaq/sf-plugin-starting-tester?style=flat&logo=github)](https://github.com/balugaq/sf-plugin-starting-tester/stargazers)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-工作流做四件事：
+</div>
 
-1. **下载插件**：通过[鬼斩资源站 API](https://resources.guizhanss.com/api/v1/projects) 按 slug + 版本下载插件 jar（含 sha256 校验），自动安装 `plugin.yml` 声明的硬依赖（depend，含 Slimefun4）与勾选的软依赖（softdepend）。
-2. **开服测试**：按 MC 版本自动选择 JDK（1.20.5+ → Java 21，更早 → Java 17），从 [fill.papermc.io](https://fill.papermc.io) 下载 Paper（支持 purpur/folia），启动服务端。
-3. **判定成败**：日志出现 `Done (` 且没有 `Error occurred while enabling <插件>` 视为通过；超时或崩溃则提取日志末尾报错段。
-4. **汇总报告**：所有版本的 JSON 结果合并生成单页 HTML（成功绿 / 失败红 + 报错原文），上传为 artifact，可选发布到 GitHub Pages。
+---
+
+## 项目背景
+
+### 问题
+
+Minecraft 版本迭代快且碎片化，而粘液（Slimefun）附属的更新参差不齐——很多附属的发布说明停留在很老的版本，标注的「支持版本」早已过时，**没有任何精确数据能判断一个附属到底能在哪些 MC 版本上跑起来**。盲装轻则报错刷屏，重则开服崩溃。
+
+### 目的
+
+旨在让人**快速验证某个附属能否在目标服务器上运行**：批量构建出各个粘液附属实际支持的 MC 版本清单，也可以用于个人自行做简单测试——不需要自己开服、不需要装环境，点一下就行。
+
+### 原理
+
+使用 **GitHub Actions** 完成「下载 → 开服 → 判定 → 报告」全流程：
+
+1. 通过[鬼斩资源站 API](https://resources.guizhanss.com)下载插件 jar（含 sha256 校验），自动解析 `plugin.yml` 安装硬依赖（depend），并按名字从全站目录动态解析依赖的真实身份（无任何硬编码映射）；
+2. 按 MC 版本自动选择对应 JDK（MC ≥ 1.20.5 → Java 21，MC 26+ → Java 25，更早 → Java 17），从 [fill.papermc.io](https://fill.papermc.io) 下载 Paper（另支持 purpur / folia）并启动服务端；
+3. 以日志出现 `Done (` 且无 `Error occurred while enabling <插件>` 判定启动成功，失败时提取日志末尾报错段；
+4. 汇总生成单页 HTML 报告（每个插件 ✔ / ✘ + 报错原文），上传为 artifact 并部署到 GitHub Pages。
+
+### 支持能力
+
+- **单端多版本并行测试**：填多个 MC 版本，每个版本一次开服，矩阵并行跑完；
+- **多附属同服测试**：一次开服同时安装上百个附属，只测启动兼容性；
+- **结果可下载**：每次运行结束在 Artifacts 下的 `compatibility-report` 中提供完整报告。
 
 ## 如何使用
 
-有两种触发方式，效果相同：
+1. **Fork 本仓库**，进入你 fork 后的项目主页，依次打开 **Settings → Pages**，将 Source 设置为 **GitHub Actions**；
+2. 等待 **GitHub Pages 自动部署**完成，打开你 fork 仓库的 Pages 地址（即测试控制台）；
+3. 创建你自己的 **GitHub Token**（[fine-grained PAT](https://github.com/settings/personal-access-tokens/new)），仅勾选本仓库的 **Actions: Read and write** 权限，用于控制台自动触发与轮询 workflow；
+4. 创建 **Guizhan Token**（[资源站 → 设置 → Tokens](https://resources.guizhanss.com/settings/tokens)），无需任何权限，仅用于提高每小时的 API 请求额度；
+5. 在控制台中填入 **GitHub Token、Guizhan Token、你自己的仓库（owner/repo）及分支**；
+6. 勾选要测试的插件，选择**服务端平台**与 **MC 版本**；
+7. 点击运行。等待运行完成后，可在你仓库的 **GitHub Actions** 中查看 workflow 运行结果；测试结果在 **Artifacts** 下的 **`compatibility-report`** 中。
 
-### 方式一：网页控制台（推荐）
+> 补充：依赖的依赖等特殊 jar 可提交到 fork 仓库的 `extra-plugins/` 目录（会原样拷入服务端 `plugins/`）；软依赖（softdepend）默认不装，`GuizhanLibPlugin` 例外——它是必装前置，会自动安装。Token 只存浏览器 localStorage，不经过任何第三方。
 
-Fork 后开启 Pages（Settings → Pages → Source 选 **GitHub Actions**），访问 `https://<你的用户名>.github.io/<仓库名>/` 即是测试控制台：
+## 开源协议
 
-1. 填一次 fine-grained PAT（只勾选本仓库的 **Actions: Read and write**，存浏览器 localStorage，不经过第三方）；
-2. 填插件 slug、MC 版本、平台等，点 **触发测试**；
-3. 页面自动轮询并显示每个 MC 版本的 ✔/✘ 结果，日志直达 GitHub run 页；每次测试的 HTML 报告也会部署在 Pages 的 `report.html`。
-
-### 方式二：手动触发 workflow
-
-   | 参数 | 说明 | 示例 |
-   |---|---|---|
-   | plugin_slug | 资源站项目 slug | `infinity-machines` |
-   | plugin_version | 版本号，留空取最新 release | `1.2.0` |
-   | softdepend_plugins | 额外安装的 softdepend 插件名，逗号分隔（GuizhanLibPlugin 始终自动安装） | `eco,PlaceholderAPI` |
-   | extra_jars | 自备 jar 下载直链，逗号分隔 | `https://.../xxx.jar` |
-   | minecraft_versions | 逗号分隔的 MC 版本 | `1.21.4,1.20.6,1.20.4` |
-   | platform | 服务端平台 | `paper` |
-   | start_timeout | 单次开服超时秒数 | `600` |
-
-**补装依赖的依赖等特殊 jar 有两个途径**：把 jar 提交到 fork 仓库的 `extra-plugins/` 目录（会原样拷进 `plugins/`），或在 `extra_jars` 输入里给下载直链。`softdepend` 默认不装（避免无关前置干扰判定），`GuizhanLibPlugin` 例外——它是必装前置，勾不勾都会自动安装。
-
-3. 跑完后每个 MC 版本的 ✔/✘ 结论显示在控制台页面（或 run 页面），HTML 报告自动部署到 Pages 的 `report.html`，完整 console 日志在 run 页或 `compatibility-report` artifact 里。
-4. （可选）在仓库 Settings → Secrets 添加 `GUIZHAN_TOKEN`（在资源站 settings/tokens 生成），可获得更高的 API 额度；不填也能测公开插件。
-
-注意：`workflow_dispatch` 只对**默认分支**上的 workflow 生效，改动 workflow 文件后记得合到默认分支。
-
-## 判定口径
-
-「启动成功」仅覆盖启动阶段：Bukkit 加载 plugin.yml → 硬依赖满足 → `onEnable()` 跑完无异常。**不覆盖**运行期报错、玩家交互、性能问题，报告结果请勿当作插件质量背书。
-
-## 开发中已知的问题与风险
-
-- **依赖解析深度只有 1 层**：依赖的依赖不自动装，用户通过 `extra-plugins/` 目录或 `extra_jars` 直链自行补充；资源站搜索按名称精确匹配，改名插件可能搜不到（`Slimefun` → `Slimefun4` 已内置别名映射）。
-- **API 版本前缀是坑**：文档只写相对路径，真实前缀是 `/api/v1`（文档首页给的 `/api/` 探测地址会返回 Route not found）。脚本已内置正确前缀，但上游文档变更时这里最先坏。
-- **限流**：匿名调资源站 API 有速率限制，MC 版本矩阵大时建议配 `GUIZHAN_TOKEN`。
-- **Paper 下载依赖 fill.papermc.io v3 API**：`downloads["server:default"].url` 字段名是上游约定，变更需同步改 `scripts/run-server.sh`。
-- **假阴性可能**：插件 onEnable 抛异常但服务端仍能 `Done (`，判定逻辑已针对性检测 `Error occurred while enabling`；若插件用非常规方式报错可能漏检，建议结合完整 console 日志人工复核。
-
-## 文件结构
-
-```
-.github/workflows/test-compatibility.yml   # 入口工作流（dispatch → 矩阵测试 → 报告 + Pages）
-pages/index.html                           # 网页控制台（触发测试、展示各版本结果）
-scripts/resolve-plugin.sh                  # 资源站下载 + depend/softdepend 依赖解析
-scripts/run-server.sh                      # JDK 选择、Paper 下载、开服与成败判定
-scripts/build-report.py                    # result-*.json → report.html
-extra-plugins/                             # 用户自备 jar（提交进来即自动装）
-```
-
-## License
-
-见 [LICENSE](LICENSE)。
+[MIT](LICENSE)
