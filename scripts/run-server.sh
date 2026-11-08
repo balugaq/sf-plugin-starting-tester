@@ -50,10 +50,28 @@ spawn-protection=0
 view-distance=4
 EOF
 
-set +e
-timeout "$START_TIMEOUT" "$JAVA_BIN" -Xmx4G -jar server.jar nogui > console.log 2>&1
-timeout_rc=$?
-set -e
+# 服务端起来后不会自己退出，干等 timeout 会白跑满 START_TIMEOUT。
+# 后台启动，轮询日志见到 Done ( 即认为启动成功，主动停服收工。
+"$JAVA_BIN" -Xmx4G -jar server.jar nogui > console.log 2>&1 &
+SERVER_PID=$!
+timeout_rc=0
+DEADLINE=$(( $(date +%s) + START_TIMEOUT ))
+while kill -0 "$SERVER_PID" 2>/dev/null; do
+  # Done 后再等几秒，让各插件的 Enabling / 报错日志都落盘再判
+  if grep -q "Done (" console.log 2>/dev/null; then
+    sleep 5
+    kill "$SERVER_PID" 2>/dev/null
+    set +e; wait "$SERVER_PID"; set -e
+    break
+  fi
+  if [ "$(date +%s)" -ge "$DEADLINE" ]; then
+    timeout_rc=124
+    kill "$SERVER_PID" 2>/dev/null
+    set +e; wait "$SERVER_PID" 2>/dev/null; set -e
+    break
+  fi
+  sleep 2
+done
 
 # ---- 服务端层面判定 ----
 SERVER_OK=no
