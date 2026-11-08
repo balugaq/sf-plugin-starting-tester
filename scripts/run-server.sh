@@ -127,14 +127,18 @@ RESULT_ARR=$(echo "$RESULTS" | jq -s -c '.' 2>/dev/null || echo '[]')
 PASSED=$(echo "$RESULT_ARR" | jq '[.[] | select(.status == "success")] | length')
 TOTAL=$(echo "$RESULT_ARR" | jq 'length')
 
+# 判定数组可能超过单参数 128KiB 上限（MAX_ARG_STRLEN），必须落盘传给 jq，
+# 不能用 --argjson 直接塞命令行（128 插件全测时曾炸出 Argument list too long）
+printf '%s' "$RESULT_ARR" > .result_arr.json
 jq -n \
   --arg mc "$MCVER" --arg platform "$PLATFORM" --arg java "$JAVA_VER" \
-  --argjson results "$RESULT_ARR" \
   --arg server_status "$SERVER_OK" \
   --argjson passed "$PASSED" --argjson total "$TOTAL" \
+  --slurpfile results .result_arr.json \
   '{mc_version:$mc, platform:$platform, java:$java,
     server_status:$server_status, passed:$passed, total:$total,
-    results:$results, judged_at:(now | todateiso8601)}' > "result-${MCVER}.json"
+    results:$results[0], judged_at:(now | todateiso8601)}' > "result-${MCVER}.json"
+rm -f .result_arr.json
 
 echo "测试结果: $PASSED/$TOTAL 通过 (MC $MCVER)"
 exit 0
