@@ -355,6 +355,7 @@
     <div class="sticky-bar">
       <span class="count" id="selCount"></span>
       <button class="ghost mini" id="restoreBtn" style="display:none" onclick="restoreSelection()"></button>
+      <button class="ghost mini" onclick="selectAll()" data-i18n="selectAll"></button>
       <button class="ghost mini" onclick="clearSelection()" data-i18n="clear"></button>
       <span class="spacer"></span>
       <button onclick="openConfirm()" data-i18n="startBtn"></button>
@@ -568,11 +569,8 @@ function gotoPage(delta) {
   renderList();
   $('list').scrollTop = 0;
 }
-function renderList(resetPage) {
-  if (resetPage === 1) PAGE = 1;
+function filteredItems() {
   const sort = currentSort();
-  if ($('sortBy')) $('sortBy').value = sort;
-  localStorage.setItem('gz_sort', sort);
   const q = $('search')?.value.trim().toLowerCase() || '';
   const all = CATALOG?.items || [];
   // 搜索优先级：名称/slug 匹配在前，简介匹配在后（各自保持原排序）
@@ -586,6 +584,14 @@ function renderList(resetPage) {
   } else {
     items.sort((a, b) => (b.downloads ?? 0) - (a.downloads ?? 0));
   }
+  return items;
+}
+
+function renderList(resetPage) {
+  if (resetPage === 1) PAGE = 1;
+  if ($('sortBy')) $('sortBy').value = currentSort();
+  localStorage.setItem('gz_sort', currentSort());
+  let items = filteredItems();
   const el = $('list');
   $('selCount').textContent = t('selCount', { n: sel.size });
   if (!items.length) {
@@ -627,6 +633,16 @@ function toggleSel(slug, on) {
 }
 function unselectSlug(slug) { sel.delete(slug); saveSelection(); renderList(); }
 function clearSelection() { sel.clear(); saveSelection(); renderList(); }
+function selectAll() {
+  // 全选当前搜索/排序下的列表；冲突被禁项跳过（先选 contains 则 included 自动让位）
+  for (const p of filteredItems()) {
+    const st = conflictState(p.slug);
+    if (st && st.blockedBy) continue;
+    sel.add(p.slug);
+  }
+  saveSelection();
+  renderList();
+}
 
 /* ---------- 冲突规则（pages/conflicts.json）：contains 已包含 included，二者二选一 ---------- */
 let CONFLICTS = [];
