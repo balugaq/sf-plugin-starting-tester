@@ -30,6 +30,8 @@ download_version() {
   local project_id="$1" version_id="$2"
   local detail
   detail=$(api "/versions/$version_id")
+  # 缓存结果逐行记到 log，脚本结尾统一汇总（while 在子管道里，计数器传不出来）
+  echo > "$OUT_DIR/.cache_log.txt"
   echo "$detail" | jq -c '.data.files[]?' | while read -r f; do
     local fid fname cache_file
     fid=$(echo "$f" | jq -r '.id')
@@ -42,14 +44,21 @@ download_version() {
       cp "$cache_file" "$OUT_DIR/$fname"
     else
       echo "下载文件: $fname"
-      curl -sfL -o "$OUT_DIR/$fname" "$API/projects/$project_id/versions/$version_id/download/$fid"
+      if ! curl -sfL -o "$OUT_DIR/$fname" "$API/projects/$project_id/versions/$version_id/download/$fid"; then
+        rm -f "$OUT_DIR/$fname"
+        echo "缓存失败 - $fname" >> "$OUT_DIR/.cache_log.txt"
+        continue
+      fi
+      # sha256 通过后才入缓存，避免坏文件毒化后续运行
+      local expect
+      expect=$(echo "$f" | jq -r '.checksum.sha256 // empty')
+      if [ -n "$expect" ] && ! echo "$expect  $OUT_DIR/$fname" | sha256sum -c - >/dev/null 2>&1; then
+        rm -f "$OUT_DIR/$fname"
+        echo "缓存失败 - $fname（sha256 不符）" >> "$OUT_DIR/.cache_log.txt"
+        continue
+      fi
       mkdir -p "$GZ_CACHE" && cp "$OUT_DIR/$fname" "$cache_file"
-    fi
-    local expect
-    expect=$(echo "$f" | jq -r '.checksum.sha256 // empty')
-    if [ -n "$expect" ]; then
-      echo "$expect  $OUT_DIR/$fname" | sha256sum -c - >/dev/null \
-        || { echo "sha256 校验失败: $fname"; exit 1; }
+      echo "缓存成功 - $fname" >> "$OUT_DIR/.cache_log.txt"
     fi
   done
 }
@@ -194,6 +203,9 @@ download_dep() {
 
 # ---- 主流程：批量模式，逗号分隔多个 slug，一次开服全部测 ----
 SLUGS="$1"
+# 进度标记用：先把空 slug 滤掉再计数，避免数量对不上
+TOTAL_SLUGS=$(echo "$SLUGS" | tr ',' ' ' | awk '{for(i=1;i<=NF;i++) if($i!="") n++} END{print n+0}')
+SLUG_IDX=0
 
 # manifest 记录被测插件的 slug→plugin.yml name 映射，供开服后逐插件判定（name 与 slug 可能不同）
 MANIFEST="$OUT_DIR/manifest.json"
@@ -201,7 +213,8 @@ echo "[]" > "$MANIFEST"
 
 for SLUG in $(echo "$SLUGS" | tr ',' ' '); do
   [ -z "$SLUG" ] && continue
-  echo "===== $SLUG ====="
+  SLUG_IDX=$((SLUG_IDX + 1))
+  echo "===== $SLUG ($SLUG_IDX/$TOTAL_SLUGS) ====="
   # 只选本 slug 本次下载涉及的 jar：与 marker 比 mtime（依赖同名覆盖会让按路径比对漏判）
   touch "$OUT_DIR/.marker"
   if ! download_plugin "$SLUG" "${2:-}"; then
@@ -269,6 +282,15 @@ if [ -d extra-plugins ]; then
 fi
 
 echo "最终插件清单: $(ls "$OUT_DIR"/*.jar | wc -l) 个 jar"
+
+# 本次运行的缓存结果汇总（命中缓存的不计，只算新写入的）
+if [ -f "$OUT_DIR/.cache_log.txt" ]; then
+  C_OK=$(grep -c '^缓存成功' "$OUT_DIR/.cache_log.txt" || true)
+  C_ALL=$(grep -c '^缓存' "$OUT_DIR/.cache_log.txt" || true)
+  echo "共计缓存成功 ($C_OK/$C_ALL) 个 jar"
+  grep '^缓存失败' "$OUT_DIR/.cache_log.txt" || true
+  rm -f "$OUT_DIR/.cache_log.txt"
+fi
 echo "已确认的名字映射:"
 jq -r 'to_entries[] | "  \(.key) -> \(.value)"' "$NAME_MAP" || true
 jq -r '.[] | "\(.slug) -> \(.name)"' "$MANIFEST" || true
