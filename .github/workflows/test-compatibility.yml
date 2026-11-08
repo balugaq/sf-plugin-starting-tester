@@ -156,12 +156,18 @@ jobs:
       - name: 生成 HTML 报告
         run: python3 scripts/build-report.py
 
+      # 多版本结果汇总表（md + csv），随 artifact 一起提供
+      - name: 生成汇总表格
+        run: python3 scripts/build-summary.py
+
       - name: 上传报告（artifact）
         uses: actions/upload-artifact@v7
         with:
           name: compatibility-report
           path: |
             report.html
+            summary.md
+            summary.csv
             console-*.log
 
       - name: 组装站点（控制台 + 最新报告）

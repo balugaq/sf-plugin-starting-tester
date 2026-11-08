@@ -591,6 +591,8 @@ function renderList(resetPage) {
   if (resetPage === 1) PAGE = 1;
   if ($('sortBy')) $('sortBy').value = currentSort();
   localStorage.setItem('gz_sort', currentSort());
+  // 高亮关键词与 filteredItems 用同一个来源，但不能共用其局部变量
+  const q = $('search')?.value.trim().toLowerCase() || '';
   let items = filteredItems();
   const el = $('list');
   $('selCount').textContent = t('selCount', { n: sel.size });
