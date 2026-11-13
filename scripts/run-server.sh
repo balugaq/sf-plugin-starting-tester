@@ -20,21 +20,25 @@ MCVER="${1// /}"   # 逗号后带空格的输入（"1.20.4, 1.20.6"）会带出�
 PLATFORM="${2:-paper}"
 START_TIMEOUT="${START_TIMEOUT:-900}"
 
-# JDK 选择: 1.20.5+ 需要 21，26.x 需要 25
-NEEDS25=$(printf '%s\n26\n' "$MCVER" | sort -V | tail -1)
-if [ "$NEEDS25" = "$MCVER" ]; then
-  JAVA_BIN="${JAVA_HOME_25_X64:-}/bin/java"
-  JAVA_VER=25
-else
-  NEEDS21=$(printf '%s\n1.20.5\n' "$MCVER" | sort -V | tail -1)
-  if [ "$NEEDS21" = "$MCVER" ]; then
-    JAVA_BIN="${JAVA_HOME_21_X64:-}/bin/java"
-    JAVA_VER=21
-  else
-    JAVA_BIN="${JAVA_HOME_17_X64:-}/bin/java"
-    JAVA_VER=17
-  fi
-fi
+JAVA_BIN="${JAVA_HOME_25_X64:-}/bin/java"
+JAVA_VER=25
+
+# 分级选择暂时停用，保留备查以便恢复（恢复时 workflow 的 17/21 安装步骤要一起放开）
+# NEEDS25=$(printf '%s\n26\n' "$MCVER" | sort -V | tail -1)
+# if [ "$NEEDS25" = "$MCVER" ]; then
+#   JAVA_BIN="${JAVA_HOME_25_X64:-}/bin/java"
+#   JAVA_VER=25
+# else
+#   NEEDS21=$(printf '%s\n1.20.5\n' "$MCVER" | sort -V | tail -1)
+#   if [ "$NEEDS21" = "$MCVER" ]; then
+#     JAVA_BIN="${JAVA_HOME_21_X64:-}/bin/java"
+#     JAVA_VER=21
+#   else
+#     JAVA_BIN="${JAVA_HOME_17_X64:-}/bin/java"
+#     JAVA_VER=17
+#   fi
+# fi
+
 [ -x "$JAVA_BIN" ] || JAVA_BIN="java"
 echo "使用 Java $JAVA_VER ($JAVA_BIN)"
 

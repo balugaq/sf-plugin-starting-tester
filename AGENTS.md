@@ -41,7 +41,9 @@
 7. **缓存策略**：Actions cache 用静态 key，条目级失效交给 GitHub（7 天无
    访问自动驱逐）；文件级过期由脚本内 `find -mtime` 清理（资源站 7 天、
    服务端 14 天）。改 key 时保留 `-v1` 风格。
-8. **JDK 分级**：MC ≥26 → Java 25，≥1.20.5 → 21，更早 → 17（temurin）。
+8. **JDK 统一为 Java 25**（temurin）：`run-server.sh` 里按 MC 版本分级的
+   选择代码、`test-compatibility.yml` 里 17/21 的 setup-java 步骤均已注释
+   保留备查；恢复分级时这两处要一起放开，否则脚本找不到对应 JAVA_HOME。
 9. **依赖解析零硬编码**：不做别名映射（如 Slimefun→Slimefun4 的写死分支
    禁止），一律全站目录候选 + plugin.yml 实名验证 + `.name_map.json` 持久
    缓存。

@@ -27,7 +27,7 @@ Minecraft 版本迭代快且碎片化，而粘液（Slimefun）附属的更新�
 使用 **GitHub Actions** 完成「下载 → 开服 → 判定 → 报告」全流程：
 
 1. 通过[鬼斩资源站 API](https://resources.guizhanss.com)下载插件 jar（含 sha256 校验），自动解析 `plugin.yml` 安装硬依赖（depend），并按名字从全站目录动态解析依赖的真实身份（无任何硬编码映射）；
-2. 按 MC 版本自动选择对应 JDK，从 [fill.papermc.io](https://fill.papermc.io) 下载 Paper（另支持 purpur / folia）并启动服务端；
+2. 统一使用 Java 25（temurin），从 [fill.papermc.io](https://fill.papermc.io) 下载 Paper（另支持 purpur / folia）并启动服务端；
 3. 以日志出现 `Done (` 且无 `Error occurred while enabling <插件>` 判定启动成功，失败时提取日志末尾报错段；
 4. 汇总生成单页 HTML 报告（每个插件 ✔ / ✘ + 报错原文），上传为 artifact 并部署到 GitHub Pages。
 

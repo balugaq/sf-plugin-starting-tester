@@ -118,15 +118,16 @@ jobs:
           path: .paper-cache
           key: server-${{ inputs.platform }}-${{ matrix.mcver }}-v1
 
-      - uses: actions/setup-java@v6
-        with:
-          distribution: temurin
-          java-version: "17"
-
-      - uses: actions/setup-java@v6
-        with:
-          distribution: temurin
-          java-version: "21"
+      # 统一使用 Java 25；旧的 17/21 安装步骤暂时停用，保留备查以便恢复
+      # - uses: actions/setup-java@v6
+      #   with:
+      #     distribution: temurin
+      #     java-version: "17"
+      #
+      # - uses: actions/setup-java@v6
+      #   with:
+      #     distribution: temurin
+      #     java-version: "21"
 
       - uses: actions/setup-java@v6
         with:
