@@ -4,6 +4,18 @@
 # 产物: console.log + result-{mcver}.json（含 per-plugin 判定数组）
 set -euo pipefail
 
+# 出错定位：任意命令失败时打印行号和现场，CI 里直接看这条就能知道死在哪
+set -E
+trap 'rc=$?
+  echo "::error::run-server.sh 第 ${LINENO} 行命令失败 (exit $rc)"
+  echo "失败位置上下文:"
+  sed -n "$((LINENO-3)),$((LINENO+3))p" "$0" | sed "s/^/  | /"
+  if [ -f console.log ]; then
+    echo "当前 console.log 末尾 20 行:"
+    tail -20 console.log | sed "s/^/  | /"
+  fi
+' ERR
+
 MCVER="${1// /}"   # 逗号后带空格的输入（"1.20.4, 1.20.6"）会带出空格
 PLATFORM="${2:-paper}"
 START_TIMEOUT="${START_TIMEOUT:-900}"
@@ -43,6 +55,7 @@ else
 fi
 
 echo "eula=true" > eula.txt
+echo "写好 eula/server.properties，准备启动服务端"
 cat > server.properties <<EOF
 online-mode=false
 sync-chunk-writes=false
@@ -54,24 +67,29 @@ EOF
 # 后台启动，轮询日志见到 Done ( 即认为启动成功，主动停服收工。
 "$JAVA_BIN" -Xmx4G -jar server.jar nogui > console.log 2>&1 &
 SERVER_PID=$!
+echo "服务端已后台启动 (PID $SERVER_PID)，等待 Done（上限 ${START_TIMEOUT}s）"
 timeout_rc=0
 DEADLINE=$(( $(date +%s) + START_TIMEOUT ))
 while kill -0 "$SERVER_PID" 2>/dev/null; do
   # Done 后再等几秒，让各插件的 Enabling / 报错日志都落盘再判
   if grep -q "Done (" console.log 2>/dev/null; then
+    echo "检测到 Done，等 5s 收日志后停服"
     sleep 5
-    kill "$SERVER_PID" 2>/dev/null
+    kill "$SERVER_PID" 2>/dev/null || true
     set +e; wait "$SERVER_PID"; set -e
+    echo "服务端已停止，开始判定"
     break
   fi
   if [ "$(date +%s)" -ge "$DEADLINE" ]; then
+    echo "启动超时（${START_TIMEOUT}s），强制停服"
     timeout_rc=124
-    kill "$SERVER_PID" 2>/dev/null
+    kill "$SERVER_PID" 2>/dev/null || true
     set +e; wait "$SERVER_PID" 2>/dev/null; set -e
     break
   fi
   sleep 2
 done
+echo "服务端轮询循环结束 (timeout_rc=$timeout_rc, 进程存活=$(kill -0 "$SERVER_PID" 2>/dev/null && echo yes || echo no))"
 
 # ---- 服务端层面判定 ----
 SERVER_OK=no
@@ -107,11 +125,12 @@ judge_results() {
          && ! grep -q "Enabling $name v" console.log; then
         status=failure
         error="日志中未出现 Enabling $name（可能依赖缺失被 Bukkit 拒载）"
+        # 2>/dev/null：head 拿满行数先退，grep 被断管会刷 Broken pipe 噪音
         error="$error
-$(grep -iE -B1 -A8 "Could not load plugin|Invalid plugin.yml|Cannot load plugin|Skipping loading addon" console.log | head -30)"
+$(grep -iE -B1 -A8 "Could not load plugin|Invalid plugin.yml|Cannot load plugin|Skipping loading addon" console.log 2>/dev/null | head -30)"
       elif grep -qiE "Error occurred while enabling $name( |$)|Could not load plugin ?'?$name'?|while enabling $name( |$)" console.log; then
         status=failure
-        error=$(grep -iE -B2 -A25 "Error occurred while enabling $name( |$)|while enabling $name( |$)" console.log | head -40)
+        error=$(grep -iE -B2 -A25 "Error occurred while enabling $name( |$)|while enabling $name( |$)" console.log 2>/dev/null | head -40)
       else
         status=success
       fi
@@ -122,6 +141,7 @@ $(grep -iE -B1 -A8 "Could not load plugin|Invalid plugin.yml|Cannot load plugin|
 }
 
 RESULTS=$(judge_results)
+echo "逐插件判定完成，开始汇总结果"
 # 逐行对象合并成数组；多行 pretty JSON 直接拼 [$RESULTS] 会因缺逗号非法
 RESULT_ARR=$(echo "$RESULTS" | jq -s -c '.' 2>/dev/null || echo '[]')
 PASSED=$(echo "$RESULT_ARR" | jq '[.[] | select(.status == "success")] | length')
@@ -139,6 +159,7 @@ jq -n \
     server_status:$server_status, passed:$passed, total:$total,
     results:$results[0], judged_at:(now | todateiso8601)}' > "result-${MCVER}.json"
 rm -f .result_arr.json
+echo "result-${MCVER}.json 已写出"
 
 echo "测试结果: $PASSED/$TOTAL 通过 (MC $MCVER)"
 exit 0
