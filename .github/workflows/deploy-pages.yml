@@ -1,15 +1,12 @@
 name: Deploy Pages
 
-# push 到 main 时自动部署控制台页面（pages/index.html）到 GitHub Pages，
-# 修改前端后无需手动跑测试即可在 Pages 链接看到最新版本。
+# push 到 master 时自动部署控制台页面（pages/index.html）到 GitHub Pages，
+# 无需手动触发即可在 Pages 链接看到最新版本。
 # 测试完成后由 test-compatibility.yml 的 report job 覆盖部署（控制台 + 最新报告）。
 
 on:
   push:
     branches: [master]
-    paths:
-      - "pages/**"
-      - ".github/workflows/deploy-pages.yml"
   workflow_dispatch:
 
 permissions:
@@ -38,8 +35,9 @@ jobs:
           cp pages/index.html _site/index.html
           cp pages/i18n.js _site/i18n.js
           cp pages/conflicts.json _site/conflicts.json
-          # 若仓库历史提交过 report.html 则一并带上（正常情况报告只由测试 workflow 部署）
+          # 仓库根目录若存有报告产物则一并带上，避免本次部署把线上已有报告冲掉
           [ -f report.html ] && cp report.html _site/report.html || true
+          [ -f results.json ] && cp results.json _site/results.json || true
 
       - name: 上传 Pages 产物
         uses: actions/upload-pages-artifact@v5

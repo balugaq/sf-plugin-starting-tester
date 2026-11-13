@@ -158,6 +158,10 @@ jobs:
     runs-on: ubuntu-latest
     needs: test
     if: always()
+    # 只让部署阶段与 Deploy Pages 排队；放顶层会把整个测试矩阵一起堵住
+    concurrency:
+      group: pages
+      cancel-in-progress: false
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

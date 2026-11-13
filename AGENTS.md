@@ -66,9 +66,11 @@
 
 ## 发布链路
 
-1. push 到 `master` 且改动 `pages/**` → `deploy-pages.yml` 自动部署控制台
+1. push 到 `master` → `deploy-pages.yml` 自动部署控制台（无 paths 过滤，每次
+   push 都会把 Pages 上的测试报告冲成纯控制台；也可用 workflow_dispatch 手动触发）
 2. 测试运行完成后 report job 会用「控制台 + 最新报告 + results.json」覆盖
-   部署（concurrency group `pages`，排队不并发）
+   部署；concurrency 挂在 report job 而非 workflow 顶层，只让部署阶段与
+   Deploy Pages 共用 group `pages` 排队，不堵住测试矩阵
 3. dependabot 每周检查 github-actions 依赖，minor/patch 合并成一个 PR
 
 ## 其他
