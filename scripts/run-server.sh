@@ -5,14 +5,15 @@
 set -euo pipefail
 
 # 出错定位：任意命令失败时打印行号和现场，CI 里直接看这条就能知道死在哪
+# 诊断输出必须全走 stderr，否则会混进命令替换捕获的判定结果
 set -E
 trap 'rc=$?
-  echo "::error::run-server.sh 第 ${LINENO} 行命令失败 (exit $rc)"
-  echo "失败位置上下文:"
-  sed -n "$((LINENO-3)),$((LINENO+3))p" "$0" | sed "s/^/  | /"
+  echo "::error::run-server.sh 第 ${LINENO} 行命令失败 (exit $rc)" >&2
+  echo "失败位置上下文:" >&2
+  sed -n "$((LINENO-3)),$((LINENO+3))p" "$0" | sed "s/^/  | /" >&2
   if [ -f console.log ]; then
-    echo "当前 console.log 末尾 20 行:"
-    tail -20 console.log | sed "s/^/  | /"
+    echo "当前 console.log 末尾 20 行:" >&2
+    tail -20 console.log | sed "s/^/  | /" >&2
   fi
 ' ERR
 
@@ -80,7 +81,8 @@ while kill -0 "$SERVER_PID" 2>/dev/null; do
     echo "检测到 Done，等 5s 收日志后停服"
     sleep 5
     kill "$SERVER_PID" 2>/dev/null || true
-    set +e; wait "$SERVER_PID"; set -e
+    # 主动 kill 的进程 wait 必返 143；ERR trap 不受 set +e 约束，只有 || 列表能豁免
+    wait "$SERVER_PID" || true
     echo "服务端已停止，开始判定"
     break
   fi
@@ -88,7 +90,7 @@ while kill -0 "$SERVER_PID" 2>/dev/null; do
     echo "启动超时（${START_TIMEOUT}s），强制停服"
     timeout_rc=124
     kill "$SERVER_PID" 2>/dev/null || true
-    set +e; wait "$SERVER_PID" 2>/dev/null; set -e
+    wait "$SERVER_PID" 2>/dev/null || true
     break
   fi
   sleep 2
@@ -130,11 +132,12 @@ judge_results() {
         status=failure
         error="日志中未出现 Enabling $name（可能依赖缺失被 Bukkit 拒载）"
         # 2>/dev/null：head 拿满行数先退，grep 被断管会刷 Broken pipe 噪音
+        # || true：grep 无匹配时 pipefail 让赋值返回 1，会截断整批判定
         error="$error
-$(grep -iE -B1 -A8 "Could not load plugin|Invalid plugin.yml|Cannot load plugin|Skipping loading addon" console.log 2>/dev/null | head -30)"
+$(grep -iE -B1 -A8 "Could not load plugin|Invalid plugin.yml|Cannot load plugin|Skipping loading addon" console.log 2>/dev/null | head -30 || true)"
       elif grep -qiE "Error occurred while enabling $name( |$)|Could not load plugin ?'?$name'?|while enabling $name( |$)" console.log; then
         status=failure
-        error=$(grep -iE -B2 -A25 "Error occurred while enabling $name( |$)|while enabling $name( |$)" console.log 2>/dev/null | head -40)
+        error=$(grep -iE -B2 -A25 "Error occurred while enabling $name( |$)|while enabling $name( |$)" console.log 2>/dev/null | head -40 || true)
       else
         status=success
       fi
