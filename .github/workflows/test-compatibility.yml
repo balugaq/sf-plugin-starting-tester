@@ -181,6 +181,10 @@ jobs:
 
       # 多版本结果汇总表（md + csv），随 artifact 一起提供
       - name: 生成汇总表格
+        env:
+          # 被 cancel 的版本不会写出结果文件，传入期望版本让表格保留该列并标为无数据
+          EXPECTED_VERSIONS: ${{ inputs.minecraft_versions }}
+          EXPECTED_PLATFORM: ${{ inputs.platform }}
         run: python3 scripts/build-summary.py
 
       - name: 上传报告（artifact）
