@@ -38,9 +38,13 @@
 6. **新下载判定用 mtime**：依赖会同名覆盖，靠 `touch marker` + `-nt` 判
    「本次新下载」；任何引入缓存/复用文件的改动都要保证 cp 出来的文件
    mtime 晚于 marker。
-7. **缓存策略**：Actions cache 用静态 key，条目级失效交给 GitHub（7 天无
-   访问自动驱逐）；文件级过期由脚本内 `find -mtime` 清理（资源站 7 天、
-   服务端 14 天）。改 key 时保留 `-v1` 风格。
+7. **缓存策略**：资源站 jar 缓存用**动态 key + restore-keys**
+   （`key: gz-jars-${{ github.run_id }}`，`restore-keys: gz-jars-`）——
+   静态 key 命中后 actions/cache 的 post 阶段不会回存，新下载的 jar 随
+   runner 丢失（曾踩坑：缓存停在 7MB，每次重下 ~100 个 jar）。条目内
+   jar 以 `slug-版本号__文件名` 命名实现 jar 级增量。服务端 cache 仍是
+   静态 key（key 变更即整份重下，无增量需求）；文件级过期由脚本内
+   `find -mtime` 清理（资源站 7 天、服务端 14 天）。
 8. **JDK 分级**：默认 Java 25（temurin）；MC ≤ 1.19.1 回退 Java 21（旧版
    ASM 不支持 Java 25 导致启动失败）；MC ≤ 1.18.1 回退 Java 17（服务端
    不支持 21+）。分级判断在 `run-server.sh`，workflow 里 25/21/17 都要

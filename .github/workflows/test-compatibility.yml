@@ -65,7 +65,12 @@ jobs:
         uses: actions/cache@v6
         with:
           path: .gzcache
-          key: gz-jars-v1
+          # 动态 key：每次运行结束都保存新条目（静态 key 命中后 post 阶段不会回存，
+          # 新下载的 jar 会随 runner 丢失）；restore-keys 恢复最近一份，jar 级
+          # 增量（slug-版本号 命名）由脚本保证，旧条目靠 GitHub 7 天不访问驱逐
+          key: gz-jars-${{ github.run_id }}
+          restore-keys: |
+            gz-jars-
 
       - name: 下载自备 jar
         if: inputs.extra_jars != ''
@@ -111,7 +116,8 @@ jobs:
           path: plugins
 
       # 过期策略：GitHub 对「整个条目 7 天无访问」自动驱逐；条目内单文件的
-      # 7/14 天过期由脚本按文件 mtime 清理（gz 7 天 / server 14 天）。
+      # 7/14 天过期由脚本按文件 mtime 清理（gz 7 天 / server 14 天）。gz-jars
+      # 条目每次运行新增一份，靠持续访问保持最新份活跃，旧份自然驱逐。
       - name: 缓存服务端 jar
         uses: actions/cache@v6
         with:

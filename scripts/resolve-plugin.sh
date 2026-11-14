@@ -11,6 +11,8 @@ API="https://resources.guizhanss.com/api/v1"
 OUT_DIR="plugins"
 GZ_CACHE=".gzcache"   # 资源站 jar 下载缓存，workflow 做 Actions cache
 mkdir -p "$OUT_DIR"
+# 缓存结果汇总 log：整次运行共用一份，download_version 只追加不截断
+: > "$OUT_DIR/.cache_log.txt"
 # 缓存过期：7 天未访问的缓存文件清掉，避免长期占用 GitHub 缓存额度
 find "$GZ_CACHE" -type f -mtime +7 -delete 2>/dev/null || true
 
@@ -27,20 +29,20 @@ api() {
 #   /projects/{slug}/versions → data 为平铺数组
 #   /versions/{id}            → data 为平铺对象，files 直接挂在 data.files
 download_version() {
-  local project_id="$1" version_id="$2"
+  local slug="$1" project_id="$2" version_id="$3"
   local detail
   detail=$(api "/versions/$version_id")
-  # 缓存结果逐行记到 log，脚本结尾统一汇总（while 在子管道里，计数器传不出来）
-  echo > "$OUT_DIR/.cache_log.txt"
+  # jar 级缓存键：slug-版本号（升版本自动换键重下），文件名里的空格/斜杠替换掉只为了可读
+  local key_name vlabel fid fname cache_file
+  vlabel=$(echo "$detail" | jq -r '.data.version // empty')
+  key_name=$(echo "${slug}-${vlabel:-$version_id}" | tr '/ ' '__')
   echo "$detail" | jq -c '.data.files[]?' | while read -r f; do
-    local fid fname cache_file
     fid=$(echo "$f" | jq -r '.id')
     fname=$(echo "$f" | jq -r '.name')
     [ -z "$fid" ] || [ "$fid" = "null" ] && continue
-    # 缓存键用文件 id（唯一），文件名里的空格/斜杠替换掉只为了可读
-    cache_file="$GZ_CACHE/${fid}__$(echo "$fname" | tr '/ ' '__')"
+    cache_file="$GZ_CACHE/${key_name}__$(echo "$fname" | tr '/ ' '__')"
     if [ -s "$cache_file" ]; then
-      echo "命中缓存: $fname"
+      echo "命中缓存 [$key_name]: $fname"
       cp "$cache_file" "$OUT_DIR/$fname"
     else
       echo "下载文件: $fname"
@@ -91,7 +93,7 @@ download_plugin() {
   [ -z "$vid" ] && { echo "找不到版本: $slug $ver"; return 1; }
 
   echo "下载 $slug (version id: $vid)"
-  download_version "$pid" "$vid"
+  download_version "$slug" "$pid" "$vid"
 }
 
 read_deps() {  # $1 = depend | softdepend, $2 = jar 路径；兼容列表格式（- X）与行内格式（[X, Y]）
