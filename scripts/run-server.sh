@@ -7,6 +7,8 @@ set -euo pipefail
 # 出错定位：任意命令失败时打印行号和现场，CI 里直接看这条就能知道死在哪
 # 诊断输出必须全走 stderr，否则会混进命令替换捕获的判定结果
 set -E
+# JVM 崩溃（如 spark 原生 SIGSEGV）时禁写 core dump：4G 堆的转储能卡住进程几分钟到更久
+ulimit -c 0
 trap 'rc=$?
   echo "::error::run-server.sh 第 ${LINENO} 行命令失败 (exit $rc)" >&2
   echo "失败位置上下文:" >&2
