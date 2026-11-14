@@ -19,7 +19,9 @@ trap 'rc=$?
 
 MCVER="${1// /}"   # 逗号后带空格的输入（"1.20.4, 1.20.6"）会带出空格
 PLATFORM="${2:-paper}"
-START_TIMEOUT="${START_TIMEOUT:-900}"
+# 开服测试阶段硬上限 10 分钟：无论上游传什么，超出部分截断
+START_TIMEOUT="${START_TIMEOUT:-600}"
+[ "$START_TIMEOUT" -gt 600 ] 2>/dev/null && START_TIMEOUT=600
 
 JAVA_BIN="${JAVA_HOME_25_X64:-}/bin/java"
 JAVA_VER=25
@@ -83,6 +85,19 @@ EOF
 
 # 服务端起来后不会自己退出，干等 timeout 会白跑满 START_TIMEOUT。
 # 后台启动，轮询日志见到 Done ( 即认为启动成功，主动停服收工。
+# 卡死状态的服务端会忽略 SIGTERM，kill 后必须限时 wait 并用 SIGKILL 补刀，
+# 否则 wait 无限挂起，整个步骤曾因此跑出 28 分钟
+stop_server() {
+  kill "$SERVER_PID" 2>/dev/null || true
+  for _ in $(seq 1 15); do
+    kill -0 "$SERVER_PID" 2>/dev/null || break
+    sleep 1
+  done
+  kill -9 "$SERVER_PID" 2>/dev/null || true
+  # 主动 kill 的进程 wait 必返 143；ERR trap 不受 set +e 约束，只有 || 列表能豁免
+  wait "$SERVER_PID" || true
+}
+
 "$JAVA_BIN" -Xmx4G -jar server.jar nogui > console.log 2>&1 &
 SERVER_PID=$!
 echo "服务端已后台启动 (PID $SERVER_PID)，等待 Done（上限 ${START_TIMEOUT}s）"
@@ -93,17 +108,14 @@ while kill -0 "$SERVER_PID" 2>/dev/null; do
   if grep -q "Done (" console.log 2>/dev/null; then
     echo "检测到 Done，等 5s 收日志后停服"
     sleep 5
-    kill "$SERVER_PID" 2>/dev/null || true
-    # 主动 kill 的进程 wait 必返 143；ERR trap 不受 set +e 约束，只有 || 列表能豁免
-    wait "$SERVER_PID" || true
+    stop_server
     echo "服务端已停止，开始判定"
     break
   fi
   if [ "$(date +%s)" -ge "$DEADLINE" ]; then
     echo "启动超时（${START_TIMEOUT}s），强制停服"
     timeout_rc=124
-    kill "$SERVER_PID" 2>/dev/null || true
-    wait "$SERVER_PID" 2>/dev/null || true
+    stop_server
     break
   fi
   sleep 2
