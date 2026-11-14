@@ -124,7 +124,8 @@ jobs:
           path: .paper-cache
           key: server-${{ inputs.platform }}-${{ matrix.mcver }}-v1
 
-      # 主力 Java 25；另装 21（MC ≤ 1.19.1，旧版 ASM 不支持 25）、17
+      # 主力 Java 25；另装 21（MC ≤ 1.19.1，旧版 ASM 不支持 25；MC 1.21 特例
+      # 强制 21 以规避 lucko/spark#548）、17
       # （MC ≤ 1.18.1，服务端不支持 21+）与 16（MC ≤ 1.17，服务端不支持 17+），
       # 分级判断在 run-server.sh
       - uses: actions/setup-java@v6

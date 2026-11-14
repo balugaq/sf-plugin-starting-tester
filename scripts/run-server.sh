@@ -49,6 +49,12 @@ else
     fi
   fi
 fi
+# MC 1.21 特例：强制 Java 21 启动，规避 spark 崩溃问题
+# https://github.com/lucko/spark/issues/548
+if [ "$MCVER" = "1.21" ] && [ -n "${JAVA_HOME_21_X64:-}" ]; then
+  JAVA_BIN="${JAVA_HOME_21_X64}/bin/java"
+  JAVA_VER=21
+fi
 # NEEDS25=$(printf '%s\n26\n' "$MCVER" | sort -V | tail -1)
 # if [ "$NEEDS25" = "$MCVER" ]; then
 #   JAVA_BIN="${JAVA_HOME_25_X64:-}/bin/java"
