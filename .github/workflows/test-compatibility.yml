@@ -118,21 +118,22 @@ jobs:
           path: .paper-cache
           key: server-${{ inputs.platform }}-${{ matrix.mcver }}-v1
 
-      # 统一使用 Java 25；旧的 17/21 安装步骤暂时停用，保留备查以便恢复
-      # - uses: actions/setup-java@v6
-      #   with:
-      #     distribution: temurin
-      #     java-version: "17"
-      #
-      # - uses: actions/setup-java@v6
-      #   with:
-      #     distribution: temurin
-      #     java-version: "21"
-
+      # 主力 Java 25；另装 21（MC ≤ 1.19.1，旧版 ASM 不支持 25）与 17
+      # （MC ≤ 1.18.1，服务端不支持 21+），分级判断在 run-server.sh
       - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: "25"
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "17"
 
       - name: 开服测试
         env:

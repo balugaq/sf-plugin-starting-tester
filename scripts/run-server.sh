@@ -24,7 +24,20 @@ START_TIMEOUT="${START_TIMEOUT:-900}"
 JAVA_BIN="${JAVA_HOME_25_X64:-}/bin/java"
 JAVA_VER=25
 
-# 分级选择暂时停用，保留备查以便恢复（恢复时 workflow 的 17/21 安装步骤要一起放开）
+# 分级：MC ≤ 1.18.1 最高 Java 17（服务端不支持 21+）；
+# MC ≤ 1.19.1 最高 Java 21（旧版 ASM 不支持 Java 25 的 class 文件版本，启动会炸）；
+# 其余默认 Java 25。注意先判 17 再判 21，否则低版本会被 21 拦截
+NEEDS17=$(printf '%s\n1.18.1\n' "$MCVER" | sort -V | head -1)
+if [ "$NEEDS17" = "$MCVER" ] && [ -n "${JAVA_HOME_17_X64:-}" ]; then
+  JAVA_BIN="${JAVA_HOME_17_X64}/bin/java"
+  JAVA_VER=17
+else
+  NEEDS21=$(printf '%s\n1.19.1\n' "$MCVER" | sort -V | head -1)
+  if [ "$NEEDS21" = "$MCVER" ] && [ -n "${JAVA_HOME_21_X64:-}" ]; then
+    JAVA_BIN="${JAVA_HOME_21_X64}/bin/java"
+    JAVA_VER=21
+  fi
+fi
 # NEEDS25=$(printf '%s\n26\n' "$MCVER" | sort -V | tail -1)
 # if [ "$NEEDS25" = "$MCVER" ]; then
 #   JAVA_BIN="${JAVA_HOME_25_X64:-}/bin/java"
