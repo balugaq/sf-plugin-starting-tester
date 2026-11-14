@@ -28,18 +28,25 @@ START_TIMEOUT="${START_TIMEOUT:-600}"
 JAVA_BIN="${JAVA_HOME_25_X64:-}/bin/java"
 JAVA_VER=25
 
-# 分级：MC ≤ 1.18.1 最高 Java 17（服务端不支持 21+）；
+# 分级：MC ≤ 1.17 最高 Java 16（服务端不支持 17+）；
+# MC ≤ 1.18.1 最高 Java 17（服务端不支持 21+）；
 # MC ≤ 1.19.1 最高 Java 21（旧版 ASM 不支持 Java 25 的 class 文件版本，启动会炸）；
-# 其余默认 Java 25。注意先判 17 再判 21，否则低版本会被 21 拦截
-NEEDS17=$(printf '%s\n1.18.1\n' "$MCVER" | sort -V | head -1)
-if [ "$NEEDS17" = "$MCVER" ] && [ -n "${JAVA_HOME_17_X64:-}" ]; then
-  JAVA_BIN="${JAVA_HOME_17_X64}/bin/java"
-  JAVA_VER=17
+# 其余默认 Java 25。注意先判低版本再判高版本，否则低版本会被高版本拦截
+NEEDS16=$(printf '%s\n1.17\n' "$MCVER" | sort -V | head -1)
+if [ "$NEEDS16" = "$MCVER" ] && [ -n "${JAVA_HOME_16_X64:-}" ]; then
+  JAVA_BIN="${JAVA_HOME_16_X64}/bin/java"
+  JAVA_VER=16
 else
-  NEEDS21=$(printf '%s\n1.19.1\n' "$MCVER" | sort -V | head -1)
-  if [ "$NEEDS21" = "$MCVER" ] && [ -n "${JAVA_HOME_21_X64:-}" ]; then
-    JAVA_BIN="${JAVA_HOME_21_X64}/bin/java"
-    JAVA_VER=21
+  NEEDS17=$(printf '%s\n1.18.1\n' "$MCVER" | sort -V | head -1)
+  if [ "$NEEDS17" = "$MCVER" ] && [ -n "${JAVA_HOME_17_X64:-}" ]; then
+    JAVA_BIN="${JAVA_HOME_17_X64}/bin/java"
+    JAVA_VER=17
+  else
+    NEEDS21=$(printf '%s\n1.19.1\n' "$MCVER" | sort -V | head -1)
+    if [ "$NEEDS21" = "$MCVER" ] && [ -n "${JAVA_HOME_21_X64:-}" ]; then
+      JAVA_BIN="${JAVA_HOME_21_X64}/bin/java"
+      JAVA_VER=21
+    fi
   fi
 fi
 # NEEDS25=$(printf '%s\n26\n' "$MCVER" | sort -V | tail -1)

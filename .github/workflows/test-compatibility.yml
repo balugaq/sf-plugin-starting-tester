@@ -118,8 +118,9 @@ jobs:
           path: .paper-cache
           key: server-${{ inputs.platform }}-${{ matrix.mcver }}-v1
 
-      # 主力 Java 25；另装 21（MC ≤ 1.19.1，旧版 ASM 不支持 25）与 17
-      # （MC ≤ 1.18.1，服务端不支持 21+），分级判断在 run-server.sh
+      # 主力 Java 25；另装 21（MC ≤ 1.19.1，旧版 ASM 不支持 25）、17
+      # （MC ≤ 1.18.1，服务端不支持 21+）与 16（MC ≤ 1.17，服务端不支持 17+），
+      # 分级判断在 run-server.sh
       - uses: actions/setup-java@v6
         with:
           distribution: temurin
@@ -134,6 +135,11 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "16"
 
       - name: 开服测试
         env:
