@@ -47,9 +47,11 @@
    `find -mtime` 清理（资源站 7 天、服务端 14 天）。
 8. **JDK 分级**：默认 Java 25（temurin）；MC ≤ 1.19.1 回退 Java 21（旧版
    ASM 不支持 Java 25 导致启动失败）；MC ≤ 1.18.1 回退 Java 17（服务端
-   不支持 21+）。分级判断在 `run-server.sh`，workflow 里 25/21/17 都要
-   安装；改分级时脚本与 workflow 两处要一起动，否则脚本找不到对应
-   JAVA_HOME。
+   不支持 21+）；MC ≤ 1.17 回退 Java 16；MC 1.13~1.16.4 按细分上限回退
+   Java 11~15（各版本服务端在超出上限的 Java 下拒绝启动）。分级判断在
+   `run-server.sh`（边界→版本对照表），workflow 里 25/21/17/16/15/14/
+   13/12/11 都要安装；改分级时脚本与 workflow 两处要一起动，否则脚本
+   找不到对应 JAVA_HOME。
 9. **依赖解析零硬编码**：不做别名映射（如 Slimefun→Slimefun4 的写死分支
    禁止），一律全站目录候选 + plugin.yml 实名验证 + `.name_map.json` 持久
    缓存。

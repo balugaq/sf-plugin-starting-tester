@@ -25,30 +25,32 @@ PLATFORM="${2:-paper}"
 START_TIMEOUT="${START_TIMEOUT:-600}"
 [ "$START_TIMEOUT" -gt 600 ] 2>/dev/null && START_TIMEOUT=600
 
-JAVA_BIN="${JAVA_HOME_25_X64:-}/bin/java"
-JAVA_VER=25
-
-# 分级：MC ≤ 1.17 最高 Java 16（服务端不支持 17+）；
+# 分级：MC ≤ 1.13.2 最高 Java 11；MC ≤ 1.14.3 最高 Java 12；
+# MC ≤ 1.15.1 最高 Java 13；MC ≤ 1.16.2 最高 Java 14；MC ≤ 1.16.4 最高 Java 15
+# （1.13~1.16 各版本服务端在超出上限的 Java 下拒绝启动）；
+# MC ≤ 1.17 最高 Java 16（服务端不支持 17+）；
 # MC ≤ 1.18.1 最高 Java 17（服务端不支持 21+）；
 # MC ≤ 1.19.1 最高 Java 21（旧版 ASM 不支持 Java 25 的 class 文件版本，启动会炸）；
 # 其余默认 Java 25。注意先判低版本再判高版本，否则低版本会被高版本拦截
-NEEDS16=$(printf '%s\n1.17\n' "$MCVER" | sort -V | head -1)
-if [ "$NEEDS16" = "$MCVER" ] && [ -n "${JAVA_HOME_16_X64:-}" ]; then
-  JAVA_BIN="${JAVA_HOME_16_X64}/bin/java"
-  JAVA_VER=16
-else
-  NEEDS17=$(printf '%s\n1.18.1\n' "$MCVER" | sort -V | head -1)
-  if [ "$NEEDS17" = "$MCVER" ] && [ -n "${JAVA_HOME_17_X64:-}" ]; then
-    JAVA_BIN="${JAVA_HOME_17_X64}/bin/java"
-    JAVA_VER=17
-  else
-    NEEDS21=$(printf '%s\n1.19.1\n' "$MCVER" | sort -V | head -1)
-    if [ "$NEEDS21" = "$MCVER" ] && [ -n "${JAVA_HOME_21_X64:-}" ]; then
-      JAVA_BIN="${JAVA_HOME_21_X64}/bin/java"
-      JAVA_VER=21
-    fi
-  fi
-fi
+JAVA_BIN="${JAVA_HOME_25_X64:-}/bin/java"
+JAVA_VER=25
+while read -r BOUND VER; do
+  [ "$(printf '%s\n%s\n' "$MCVER" "$BOUND" | sort -V | head -1)" = "$MCVER" ] || continue
+  JH_VAR="JAVA_HOME_${VER}_X64"
+  [ -n "${!JH_VAR:-}" ] || continue
+  JAVA_BIN="${!JH_VAR}/bin/java"
+  JAVA_VER="$VER"
+  break
+done <<'EOF'
+1.13.2 11
+1.14.3 12
+1.15.1 13
+1.16.2 14
+1.16.4 15
+1.17 16
+1.18.1 17
+1.19.1 21
+EOF
 # MC 1.21 特例：强制 Java 21 启动，规避 spark 崩溃问题
 # https://github.com/lucko/spark/issues/548
 if [ "$MCVER" = "1.21" ] && [ -n "${JAVA_HOME_21_X64:-}" ]; then
