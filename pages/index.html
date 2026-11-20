@@ -373,7 +373,7 @@
     <input id="ver" data-i18n-ph="verPh">
     <label data-i18n="platformLabel"></label>
     <select id="platform" onchange="loadMcVersions(true)">
-      <option value="paper">paper</option><option value="purpur">purpur</option><option value="folia">folia</option>
+      <option value="paper">Paper</option><option value="purpur">Purpur</option><option value="folia">Folia</option>
     </select>
     <label data-i18n="mcLabel"></label>
     <div class="mcsel" id="mcSel">
@@ -695,11 +695,17 @@ async function loadMcVersions(force) {
   panel.innerHTML = `<span class="hint">${esc(t('mcLoading'))}</span>`;
   const platform = $('platform').value;
   try {
-    const d = await (await fetch(`${FILL}/projects/${platform}`)).json();
-    const raw = d.versions || {};
-    MCGROUPS = Object.entries(raw)
-      .map(([label, versions]) => ({ label, versions }))
-      .filter(g => g.versions.length);
+    let groups;
+    if (platform === 'purpur') {
+      // Purpur 不在 fill API 里，走它自己的 v2 API（返回扁平版本数组，无 family 分组）
+      const d = await (await fetch('https://api.purpurmc.org/v2/purpur')).json();
+      groups = [{ label: 'All versions', versions: d.versions || [] }];
+    } else {
+      const d = await (await fetch(`${FILL}/projects/${platform}`)).json();
+      groups = Object.entries(d.versions || {})
+        .map(([label, versions]) => ({ label, versions }));
+    }
+    MCGROUPS = groups.filter(g => g.versions && g.versions.length);
     $('mcFallback').style.display = 'none';
     $('mcSearch').style.display = '';
     renderMcList();
