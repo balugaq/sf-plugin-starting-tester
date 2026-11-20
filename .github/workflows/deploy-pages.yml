@@ -13,6 +13,8 @@ permissions:
   contents: read
   pages: write
   id-token: write
+  # 重跑失败 run 时清理残留的 github-pages artifact 需要 actions: write
+  actions: write
 
 # 同名 Pages 部署并发会冲突，排队处理
 concurrency:
@@ -38,6 +40,19 @@ jobs:
           # 仓库根目录若存有报告产物则一并带上，避免本次部署把线上已有报告冲掉
           [ -f report.html ] && cp report.html _site/report.html || true
           [ -f results.json ] && cp results.json _site/results.json || true
+
+      # 重跑失败 run 时旧的 github-pages artifact 会残留，deploy-pages 因发现
+      # 多个同名 artifact 而拒绝部署，先清掉
+      - name: 清理残留 Pages 产物
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ids=$(gh api --paginate \
+            "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts" \
+            -q '.artifacts[] | select(.name == "github-pages") | .id') || true
+          for id in $ids; do
+            gh api -X DELETE "repos/${{ github.repository }}/actions/artifacts/$id"
+          done
 
       - name: 上传 Pages 产物
         uses: actions/upload-pages-artifact@v5
