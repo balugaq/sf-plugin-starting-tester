@@ -79,8 +79,13 @@ echo "使用 Java $JAVA_VER ($JAVA_BIN)"
 # 缓存过期：14 天未访问的缓存 jar 清掉，避免长期占用 GitHub 缓存额度
 find .paper-cache -type f -mtime +14 -delete 2>/dev/null || true
 CACHE_JAR=".paper-cache/server-$PLATFORM-$MCVER.jar"
-BUILD_JSON=$(curl -sf "https://fill.papermc.io/v3/projects/$PLATFORM/versions/$MCVER/builds/latest")
-SERVER_URL=$(echo "$BUILD_JSON" | jq -r '.downloads["server:default"].url')
+# Purpur 不在 fill.papermc.io 上，走它自家 API；下载端点对 latest 构建同样有效
+if [ "$PLATFORM" = "purpur" ]; then
+  SERVER_URL="https://api.purpurmc.org/v2/purpur/$MCVER/latest/download"
+else
+  BUILD_JSON=$(curl -sf "https://fill.papermc.io/v3/projects/$PLATFORM/versions/$MCVER/builds/latest")
+  SERVER_URL=$(echo "$BUILD_JSON" | jq -r '.downloads["server:default"].url')
+fi
 [ -n "$SERVER_URL" ] && [ "$SERVER_URL" != "null" ] || { echo "找不到 $PLATFORM $MCVER 的服务端构建"; exit 1; }
 if [ -s "$CACHE_JAR" ]; then
   cp "$CACHE_JAR" server.jar
