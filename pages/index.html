@@ -286,6 +286,16 @@
   }
   #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
   #toast.err { border-color: var(--fail); color: #f2a09e; }
+
+  /* ---------- 本地 jar 拖拽上传区 ---------- */
+  #dropZone {
+    margin-top: .5rem; padding: .7rem .8rem; text-align: center;
+    font-size: .78rem; color: var(--text-2); line-height: 1.45;
+    border: 1px dashed var(--border-strong); border-radius: 8px;
+    cursor: pointer; transition: border-color .15s, background .15s;
+  }
+  #dropZone.over, #dropZone:hover { border-color: var(--accent); background: rgba(45,108,223,.08); }
+
   @media (max-width: 520px) { .dialog .body ul { columns: 1; } }
 
   /* ---------- 记录表手机端卡片化 ---------- */
@@ -394,6 +404,8 @@
     <input id="timeout" value="900">
     <label data-i18n="jarsLabel"></label>
     <textarea id="extrajars" rows="3" data-i18n-ph="jarsPh"></textarea>
+    <div id="dropZone" data-i18n="dropZone"></div>
+    <input type="file" id="jarInput" accept=".jar" multiple hidden>
   </div>
 
 </div>
@@ -437,6 +449,18 @@
       <label class="ua-check"><input type="checkbox" id="uaCheck"> <span data-i18n="uaCheck"></span></label>
       <button class="ghost ua-cancel" id="uaCancel" onclick="closeUA()" data-i18n="cancel"></button>
       <button id="uaBtn" onclick="acceptUA()" data-i18n="uaAgree"></button>
+    </div>
+  </div>
+</div>
+
+<!-- 首次上传 jar 提醒弹窗 -->
+<div class="mask" id="upMask">
+  <div class="dialog" style="max-width:540px">
+    <div class="head"><h2 data-i18n="uploadConfirmTitle"></h2></div>
+    <div class="body"><p class="clause" id="upBody"></p></div>
+    <div class="actions">
+      <button class="ghost" onclick="document.getElementById('upMask').classList.remove('show')" data-i18n="cancel"></button>
+      <button id="upOk" onclick="confirmUpload()" data-i18n="uploadBtn"></button>
     </div>
   </div>
 </div>
@@ -873,6 +897,96 @@ function closeUA() {
   $('uaActions').classList.remove('ua-only-actions');
 }
 
+/* ---------- 本地 jar 拖拽上传（GitHub Contents API → uploaded-jars 分支） ---------- */
+const JARS_BRANCH = 'uploaded-jars';
+let pendingJars = [];
+
+function initDropZone() {
+  const dz = $('dropZone');
+  dz.addEventListener('click', () => $('jarInput').click());
+  $('jarInput').addEventListener('change', e => { handleJars([...e.target.files]); e.target.value = ''; });
+  ['dragover', 'dragenter'].forEach(ev => dz.addEventListener(ev, e => {
+    e.preventDefault(); dz.classList.add('over');
+  }));
+  ['dragleave', 'drop'].forEach(ev => dz.addEventListener(ev, e => {
+    e.preventDefault(); dz.classList.remove('over');
+  }));
+  dz.addEventListener('drop', e => handleJars([...e.dataTransfer.files]));
+}
+
+function handleJars(files) {
+  const jars = files.filter(f => f.name.toLowerCase().endsWith('.jar'));
+  if (!jars.length) { showToast(t('dropInvalid'), true); return; }
+  if (!$('token').value.trim()) { showToast(t('needGhToken'), true); return; }
+  // 首次上传：先弹窗说明会往仓库提交公开文件
+  if (!localStorage.getItem('gz_upload_warned')) {
+    pendingJars = jars;
+    $('upBody').innerHTML = t('uploadConfirmBody');
+    $('upMask').classList.add('show');
+    return;
+  }
+  uploadJars(jars);
+}
+
+function confirmUpload() {
+  $('upMask').classList.remove('show');
+  localStorage.setItem('gz_upload_warned', '1');
+  const files = pendingJars;
+  pendingJars = [];
+  uploadJars(files);
+}
+
+/* uploaded-jars 分支不存在时，从默认分支拉一个 head 出来 */
+async function ensureJarsBranch(repo) {
+  let res = await fetch(`${GH}/repos/${repo}/branches/${JARS_BRANCH}`, { headers: ghHeaders() });
+  if (res.ok) return;
+  if (res.status !== 404) throw new Error(t('apiErr', { s: res.status, w: t('branchCheck') }));
+  const info = await (await fetch(`${GH}/repos/${repo}`, { headers: ghHeaders() })).json();
+  const ref = await (await fetch(`${GH}/repos/${repo}/git/ref/heads/${info.default_branch}`, { headers: ghHeaders() })).json();
+  res = await fetch(`${GH}/repos/${repo}/git/refs`, {
+    method: 'POST',
+    headers: { ...ghHeaders(), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ref: `refs/heads/${JARS_BRANCH}`, sha: ref.object.sha })
+  });
+  // 422 = 分支已被并发创建，视为成功
+  if (!res.ok && res.status !== 422) throw new Error(t('apiErr', { s: res.status, w: t('branchCreate') }));
+}
+
+async function toBase64(file) {
+  const buf = new Uint8Array(await file.arrayBuffer());
+  let bin = '';
+  for (let i = 0; i < buf.length; i += 0x8000)
+    bin += String.fromCharCode(...buf.subarray(i, i + 0x8000));
+  return btoa(bin);
+}
+
+async function uploadJars(files) {
+  let repo;
+  try {
+    repo = repoPath();
+  } catch (e) { showToast(t('uploadFail', { m: e.message }), true); return; }
+  showToast(t('uploading', { n: files.length }));
+  try {
+    await ensureJarsBranch(repo);
+    const urls = [];
+    for (const f of files) {
+      const path = `upload/${Date.now()}-${f.name.replace(/\s+/g, '_')}`;
+      const res = await fetch(`${GH}/repos/${repo}/contents/${path.split('/').map(encodeURIComponent).join('/')}`, {
+        method: 'PUT',
+        headers: { ...ghHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: `upload ${f.name}`, content: await toBase64(f), branch: JARS_BRANCH })
+      });
+      if (!res.ok) throw new Error(t('apiErr', { s: res.status, w: f.name }));
+      urls.push(`https://raw.githubusercontent.com/${repo}/${JARS_BRANCH}/${path.split('/').map(encodeURIComponent).join('/')}`);
+    }
+    const ta = $('extrajars');
+    ta.value = (ta.value.trim() ? ta.value.trimEnd() + '\n' : '') + urls.join('\n');
+    showToast(t('uploaded', { n: files.length }));
+  } catch (e) {
+    showToast(t('uploadFail', { m: e.message }), true);
+  }
+}
+
 /* ---------- ③ 测试记录 ---------- */
 /* results.json 由最近一次测试随 Pages 部署，用于把「流程成功但有插件失败」标成部分完成 */
 async function loadResultsSummary() {
@@ -925,6 +1039,7 @@ if ($('token').value.trim()) { loadCatalog(); loadResults(); }
 maybeShowRestore();
 updateMcBtn();
 loadMcVersions(false);
+initDropZone();
 </script>
 </body>
 </html>
