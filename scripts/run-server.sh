@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 下载 Paper 服务端并启动一次，按日志对 manifest 里每个插件逐个判定。
+# 下载服务端（Paper/Purpur/Folia/Leaf/Leaves/Pufferfish）并启动一次，按日志对 manifest 里每个插件逐个判定。
 # 用法: run-server.sh <mc_version> [platform]
 # 产物: console.log + result-{mcver}.json（含 per-plugin 判定数组）
 set -euo pipefail
@@ -75,17 +75,41 @@ fi
 [ -x "$JAVA_BIN" ] || JAVA_BIN="java"
 echo "使用 Java $JAVA_VER ($JAVA_BIN)"
 
-# Paper 下载（fill.papermc.io v3 API），带本地缓存（workflow 用 .paper-cache 做 Actions cache）
+# 各平台接口形态不同，先在这里统一算出 jar 直链；缓存按平台+版本隔离
 # 缓存过期：14 天未访问的缓存 jar 清掉，避免长期占用 GitHub 缓存额度
 find .paper-cache -type f -mtime +14 -delete 2>/dev/null || true
 CACHE_JAR=".paper-cache/server-$PLATFORM-$MCVER.jar"
-# Purpur 不在 fill.papermc.io 上，走它自家 API；下载端点对 latest 构建同样有效
-if [ "$PLATFORM" = "purpur" ]; then
-  SERVER_URL="https://api.purpurmc.org/v2/purpur/$MCVER/latest/download"
-else
-  BUILD_JSON=$(curl -sf "https://fill.papermc.io/v3/projects/$PLATFORM/versions/$MCVER/builds/latest")
-  SERVER_URL=$(echo "$BUILD_JSON" | jq -r '.downloads["server:default"].url')
-fi
+case "$PLATFORM" in
+  purpur)
+    SERVER_URL="https://api.purpurmc.org/v2/purpur/$MCVER/latest/download"
+    ;;
+  leaf)
+    BUILD_JSON=$(curl -sf "https://api.leafmc.one/v2/projects/leaf/versions/$MCVER/builds" || true)
+    BUILD=$(echo "$BUILD_JSON" | jq -r '.builds[-1].build // empty')
+    JAR_NAME=$(echo "$BUILD_JSON" | jq -r '.builds[-1].downloads.primary.name // empty')
+    [ -n "$BUILD" ] && [ -n "$JAR_NAME" ] || { echo "找不到 leaf $MCVER 的构建"; exit 1; }
+    SERVER_URL="https://api.leafmc.one/v2/projects/leaf/versions/$MCVER/builds/$BUILD/downloads/$JAR_NAME"
+    ;;
+  leaves)
+    BUILD_JSON=$(curl -sf "https://api.leavesmc.org/v2/projects/leaves/versions/$MCVER/builds" || true)
+    BUILD=$(echo "$BUILD_JSON" | jq -r '.builds[-1].build // empty')
+    [ -n "$BUILD" ] || { echo "找不到 leaves $MCVER 的构建"; exit 1; }
+    SERVER_URL="https://api.leavesmc.org/v2/projects/leaves/versions/$MCVER/builds/$BUILD/downloads/application"
+    ;;
+  pufferfish)
+    # Jenkins 按大版本分 job，MCVER 取前两段（1.21.10 → Pufferfish-1.21）
+    MAJOR=$(echo "$MCVER" | cut -d. -f1,2)
+    BUILD_JSON=$(curl -sf "https://ci.pufferfish.host/job/Pufferfish-$MAJOR/lastSuccessfulBuild/api/json" || true)
+    BUILD_URL=$(echo "$BUILD_JSON" | jq -r '.url // empty')
+    REL=$(echo "$BUILD_JSON" | jq -r '.artifacts[0].relativePath // empty')
+    [ -n "$BUILD_URL" ] && [ -n "$REL" ] || { echo "找不到 pufferfish $MCVER ($MAJOR) 的 jar"; exit 1; }
+    SERVER_URL="${BUILD_URL%/}/artifact/$REL"
+    ;;
+  *)
+    BUILD_JSON=$(curl -sf "https://fill.papermc.io/v3/projects/$PLATFORM/versions/$MCVER/builds/latest" || true)
+    SERVER_URL=$(echo "$BUILD_JSON" | jq -r '.downloads["server:default"].url // empty')
+    ;;
+esac
 [ -n "$SERVER_URL" ] && [ "$SERVER_URL" != "null" ] || { echo "找不到 $PLATFORM $MCVER 的服务端构建"; exit 1; }
 if [ -s "$CACHE_JAR" ]; then
   cp "$CACHE_JAR" server.jar

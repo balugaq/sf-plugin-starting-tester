@@ -25,7 +25,7 @@ on:
         required: true
         default: "1.21.4,1.20.6,1.20.4"
       platform:
-        description: "服务端平台（paper / purpur / folia）"
+        description: "服务端平台（paper / purpur / folia / leaf / leaves / pufferfish）"
         required: false
         default: "paper"
       start_timeout:

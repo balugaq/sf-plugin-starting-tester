@@ -247,7 +247,7 @@
   }
   .dialog .head { padding: 1rem 1.2rem .6rem; border-bottom: 1px solid var(--border); }
   .dialog .head h2 { margin: 0; }
-  .dialog .body { padding: .8rem 1.2rem; overflow-y: auto; flex: 1; }
+  .dialog .body { padding: .8rem 1.2rem; overflow-y: auto; min-height: 0; overflow-wrap: anywhere; flex: 1; }
   .dialog .body ul {
     columns: 2; column-gap: 1.2rem;
     font-size: .82rem; padding-left: 1.1rem; margin: .5rem 0;
@@ -384,6 +384,7 @@
     <label data-i18n="platformLabel"></label>
     <select id="platform" onchange="loadMcVersions(true)">
       <option value="paper">Paper</option><option value="purpur">Purpur</option><option value="folia">Folia</option>
+      <option value="leaf">Leaf</option><option value="leaves">Leaves</option><option value="pufferfish">Pufferfish</option>
     </select>
     <label data-i18n="mcLabel"></label>
     <div class="mcsel" id="mcSel">
@@ -709,9 +710,33 @@ function restoreSelection() {
   maybeShowRestore();
 }
 
-/* ---------- ② MC 版本多选下拉（版本列表来自 Paper REST API） ---------- */
+/* ---------- ② MC 版本多选下拉（版本列表来自各平台 API） ---------- */
 let MCGROUPS = [];   // [{label, versions}]
 const MCSEL = new Set(($('mcvers').value || '').split(',').map(s => s.trim()).filter(Boolean));
+
+/* 数值段降序、预发布排在正式版之后，避免各平台 API 返回顺序不一致 */
+function compareMcVerDesc(a, b) {
+  const parse = v => {
+    const m = String(v).trim().match(/^(\d+(?:\.\d+)*)(?:[- ]?(pre|rc|snapshot|beta|alpha)[- ]?(\d*))?$/i);
+    if (!m) return null;
+    const stage = { snapshot: 0, alpha: 1, beta: 2, pre: 3, rc: 4 };
+    return {
+      nums: m[1].split('.').map(Number),
+      stage: m[2] ? (stage[m[2].toLowerCase()] ?? 3) : 5,
+      seq: m[3] ? Number(m[3]) : 0
+    };
+  };
+  const ka = parse(a), kb = parse(b);
+  if (!ka || !kb) return String(b).localeCompare(String(a));
+  const n = Math.max(ka.nums.length, kb.nums.length);
+  for (let i = 0; i < n; i++) {
+    const x = ka.nums[i] ?? 0, y = kb.nums[i] ?? 0;
+    if (x !== y) return y - x;
+  }
+  if (ka.stage !== kb.stage) return kb.stage - ka.stage;
+  if (ka.seq !== kb.seq) return kb.seq - ka.seq;
+  return String(b).localeCompare(String(a));
+}
 
 async function loadMcVersions(force) {
   const panel = $('mcList');
@@ -720,16 +745,25 @@ async function loadMcVersions(force) {
   const platform = $('platform').value;
   try {
     let groups;
-    if (platform === 'purpur') {
-      // Purpur 不在 fill API 里，走它自己的 v2 API（返回扁平版本数组，无 family 分组）
-      const d = await (await fetch('https://api.purpurmc.org/v2/purpur')).json();
+    if (platform === 'purpur' || platform === 'leaf' || platform === 'leaves') {
+      // 这三家不在 fill API 里，各自 v2 API 返回扁平版本数组
+      const api = platform === 'purpur' ? 'https://api.purpurmc.org/v2/purpur'
+        : platform === 'leaf' ? 'https://api.leafmc.one/v2/projects/leaf'
+        : 'https://api.leavesmc.org/v2/projects/leaves';
+      const d = await (await fetch(api)).json();
       groups = [{ label: 'All versions', versions: d.versions || [] }];
+    } else if (platform === 'pufferfish') {
+      // Jenkins 只放行自己域名的 CORS，浏览器读不到，按已开放的大版本列静态清单
+      groups = [{ label: 'All versions', versions: ['1.21', '1.20', '1.19', '1.18', '1.17'] }];
     } else {
       const d = await (await fetch(`${FILL}/projects/${platform}`)).json();
       groups = Object.entries(d.versions || {})
         .map(([label, versions]) => ({ label, versions }));
     }
-    MCGROUPS = groups.filter(g => g.versions && g.versions.length);
+    MCGROUPS = groups
+      .map(g => ({ label: g.label, versions: [...g.versions].sort(compareMcVerDesc) }))
+      .filter(g => g.versions.length)
+      .sort((a, b) => compareMcVerDesc(a.label, b.label));
     $('mcFallback').style.display = 'none';
     $('mcSearch').style.display = '';
     renderMcList();
@@ -753,7 +787,7 @@ function renderMcList() {
 }
 function toggleMcVer(v, on) { on ? MCSEL.add(v) : MCSEL.delete(v); syncMcValue(); renderMcList(); }
 function syncMcValue() {
-  $('mcvers').value = [...MCSEL].join(',');
+  $('mcvers').value = [...MCSEL].sort(compareMcVerDesc).join(',');
   updateMcBtn();
 }
 function updateMcBtn() {
@@ -797,12 +831,17 @@ function openConfirm() {
   const mc = $('mcvers').value.trim();
   if (!mc) { alert(t('mcNone')); return; }
   const slugs = [...sel];
+  const vers = mc.split(',').map(s => s.trim()).filter(Boolean);
+  // 版本过多时只显示前 10 个，完整清单留在 title 里，避免长串把弹窗撑宽
+  const mcHtml = vers.length > 10
+    ? `<span title="${esc(mc)}">${esc(vers.slice(0, 10).join(', '))} …(+${vers.length - 10})</span>`
+    : esc(mc);
   const jars = $('extrajars').value.split(/\n+/).map(s => s.trim()).filter(Boolean);
   // 与上次完全相同的矩阵：可能是误触，先确认
   const dup = localStorage.getItem('gz_last_matrix') === currentMatrix();
   $('confirmBody').innerHTML = `
     ${dup ? `<p class="warn">${esc(t('dupMatrix'))}</p>` : ''}
-    <p>${t('confirmBody', { n: slugs.length, mc: esc(mc), pf: esc($('platform').value) })}</p>
+    <p>${t('confirmBody', { n: slugs.length, mc: mcHtml, pf: esc($('platform').value) })}</p>
     ${jars.length ? `<p class="hint">${esc(t('jarsNote', { n: jars.length }))}</p>` : ''}
     <ul>${slugs.map(s => `<li>${esc(s)}</li>`).join('')}</ul>
     <p class="hint">${esc(t('confirmHint', { t: esc($('timeout').value) }))}</p>`;
