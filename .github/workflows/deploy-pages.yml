@@ -27,7 +27,8 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      # 首次部署成功时重试步骤是跳过的，输出为空，回退到首次尝试的 page_url
+      url: ${{ steps.deploy-first.outputs.page_url || steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v7
 
@@ -58,7 +59,44 @@ jobs:
         uses: actions/upload-pages-artifact@v5
         with:
           path: _site
+          # 默认只留 1 天：隔天仅重跑 deploy job 会因产物过期报「找不到 github-pages」
+          retention-days: 7
 
-      - name: 部署 Pages
+      # deploy-pages 查产物只调一次 Results 服务，服务端索引偶发滞后就会误报
+      # 「No artifacts named github-pages」（上游 actions/deploy-pages#418）。
+      # 先在 REST 侧确认产物已可读，把误判窗口尽量缩短。
+      - name: 等待 Pages 产物可见
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          for i in $(seq 1 18); do
+            n=$(gh api --paginate \
+              "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts?per_page=100" \
+              -q '.artifacts[] | select(.name == "github-pages") | .id' 2>/dev/null | wc -l)
+            if [ "${n:-0}" -ge 1 ]; then
+              echo "github-pages 产物已可见（第 ${i} 次探测）"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::90 秒内仍未在本次 run 的产物列表里看到 github-pages"
+          gh api --paginate \
+            "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts?per_page=100" \
+            -q '.artifacts[].name' || true
+          exit 1
+
+      # 只重试部署，不重传产物：重传会造出第二个同名 artifact，deploy-pages
+      # 会改以「Multiple artifacts named github-pages」拒绝部署
+      - name: 部署 Pages（首次）
+        id: deploy-first
+        continue-on-error: true
+        uses: actions/deploy-pages@v5
+
+      - name: 等待产物索引稳定
+        if: steps.deploy-first.outcome == 'failure'
+        run: sleep 20
+
+      - name: 部署 Pages（重试）
         id: deployment
+        if: steps.deploy-first.outcome == 'failure'
         uses: actions/deploy-pages@v5

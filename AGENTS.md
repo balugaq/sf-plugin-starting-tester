@@ -80,6 +80,12 @@
    部署；concurrency 挂在 report job 而非 workflow 顶层，只让部署阶段与
    Deploy Pages 共用 group `pages` 排队，不堵住测试矩阵
 3. dependabot 每周检查 github-actions 依赖，minor/patch 合并成一个 PR
+4. **Pages 部署不能靠「重跑整个 job」救场**：`deploy-pages` 查产物只调一次
+   Results 服务，索引偶发滞后就误报「No artifacts named github-pages」
+   （上游 actions/deploy-pages#418，同提交同版本时好时坏）。两个 workflow
+   都在上传后加了「等待产物可见」轮询 + 部署失败重试一次；**要重试就只重试
+   部署步骤，绝不重传产物**——重传会造出第二个同名 artifact，deploy-pages
+   会改以「Multiple artifacts named github-pages」拒绝部署
 
 ## 其他
 
