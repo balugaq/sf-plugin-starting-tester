@@ -183,13 +183,77 @@ $(tail -40 console.log)"
 fi
 
 # ---- 逐插件判定 ----
+# Bukkit 在加载阶段就拒载时不会进 onEnable，日志形如
+#   Could not load 'plugins/Foo-1.2.jar' in folder 'plugins'
+#   org.bukkit.plugin.InvalidPluginException: Unsupported API version 1.21
+# 这类插件根本没有 Enabling 行，必须把拒载原因单独摘出来，否则报告只剩一句「未出现 Enabling」
+unsupported_api_excerpt() {
+  local name="$1" jar="$2"
+  awk -v name="$name" -v jar="$jar" '
+    function flush() {
+      if (seg == "") return
+      low = tolower(seg)
+      # 同名依赖/其它插件也可能被拒载，段内必须能对上本插件的 name 或 jar 名
+      if (index(low, "unsupported api version") &&
+          ((low_name != "" && index(low, low_name)) || (jar != "" && index(seg, jar)))) {
+        printf "%s", seg
+      }
+      seg = ""
+    }
+    BEGIN { low_name = tolower(name) }
+    {
+      # 段 = Could not load 行 + 其后的堆栈；下一条带时间戳的日志即视为本段结束，
+      # 否则 30 行窗口会吞进后续日志，把别的插件名也带进来造成误判
+      if (in_seg && $0 ~ /^\[[0-9]+:[0-9]+:[0-9]+/) { flush(); in_seg = 0 }
+      if (tolower($0) ~ /could not load/) {
+        flush()
+        in_seg = 1
+        n = 0
+        seg = $0 "\n"
+        next
+      }
+      if (in_seg) {
+        seg = seg $0 "\n"
+        if (++n >= 30) { flush(); in_seg = 0 }
+      }
+    }
+    END { flush() }
+  ' console.log 2>/dev/null
+}
+
+# 插件 onEnable 正常返回后又自己 disablePlugin（如 Slimefun 判定版本不支持时自禁），
+# Bukkit 不会打 Error occurred while enabling，只能靠「Enabling 之后、停服之前出现 Disabling」识别；
+# 以 Stopping 截断，避免把正常停服的 Disabling 误判成自禁
+self_disabled_excerpt() {
+  local name="$1"
+  awk -v name="$name" '
+    BEGIN {
+      en = "enabling " tolower(name) "([[:space:]]|$)"
+      di = "disabling " tolower(name) "([[:space:]]|$)"
+    }
+    { low = tolower($0) }
+    low ~ /stopping (the )?server/ { exit }
+    !on && low ~ en { on = 1; n = 0; next }
+    on { ring[n % 30] = $0; n++ }
+    on && low ~ di {
+      # 只回看 Disabling 前 30 行：错误原因紧邻自禁，也避免把启动期的无关告警当理由
+      recent = ""
+      start = (n > 30) ? n - 30 : 0
+      for (i = start; i < n; i++) recent = recent ring[i % 30] "\n"
+      if (recent != "" && tolower(recent) ~ /(error|warn|exception|failed|unsupported|失败|不支持|cannot|unable)/) printf "%s", recent
+      exit
+    }
+  ' console.log 2>/dev/null
+}
+
 # 成功 = 服务端 Done 且日志有 "Enabling {name}" 且没有该插件的加载/启用报错
 judge_results() {
   local manifest="plugins/manifest.json"
   jq -c '.[]' "$manifest" | while read -r entry; do
-    local slug name status error
+    local slug name status error jar api_excerpt disable_excerpt
     slug=$(echo "$entry" | jq -r '.slug')
     name=$(echo "$entry" | jq -r '.name')
+    jar=$(echo "$entry" | jq -r '.jar // empty')
     downloaded=$(echo "$entry" | jq -r '.downloaded')
     status=failure
     error=""
@@ -198,17 +262,29 @@ judge_results() {
     elif [ "$SERVER_OK" != "yes" ]; then
       error="$SERVER_EXCERPT"
     else
-      if ! grep -qE "^\\[[0-9:]+ INFO\\]: Enabling $name( |$)" console.log \
+      # 先算两类「日志里能看出原因、但不会匹配 Error occurred while enabling」的失败
+      api_excerpt=$(unsupported_api_excerpt "$name" "$jar" | head -40 || true)
+      # 自禁原因一般在段末，取尾部，避免被启动期的无关日志挤掉
+      disable_excerpt=$(self_disabled_excerpt "$name" | tail -30 || true)
+      if [ -n "$api_excerpt" ]; then
+        status=failure
+        error="加载阶段被 Bukkit 拒载（Unsupported API version）
+$api_excerpt"
+      elif ! grep -qE "^\\[[0-9:]+ INFO\\]: Enabling $name( |$)" console.log \
          && ! grep -q "Enabling $name v" console.log; then
         status=failure
         error="日志中未出现 Enabling $name（可能依赖缺失被 Bukkit 拒载）"
         # 2>/dev/null：head 拿满行数先退，grep 被断管会刷 Broken pipe 噪音
         # || true：grep 无匹配时 pipefail 让赋值返回 1，会截断整批判定
         error="$error
-$(grep -iE -B1 -A8 "Could not load plugin|Invalid plugin.yml|Cannot load plugin|Skipping loading addon" console.log 2>/dev/null | head -30 || true)"
+$(grep -iE -B1 -A8 "Could not load|Invalid plugin.yml|Cannot load plugin|Skipping loading addon|Unsupported API version" console.log 2>/dev/null | head -30 || true)"
       elif grep -qiE "Error occurred while enabling $name( |$)|Could not load plugin ?'?$name'?|while enabling $name( |$)" console.log; then
         status=failure
         error=$(grep -iE -B2 -A25 "Error occurred while enabling $name( |$)|while enabling $name( |$)" console.log 2>/dev/null | head -40 || true)
+      elif [ -n "$disable_excerpt" ]; then
+        status=failure
+        error="插件启用后被自行禁用（onEnable 返回后 disable）
+$disable_excerpt"
       else
         status=success
       fi

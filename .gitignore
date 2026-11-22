@@ -5,6 +5,10 @@
 # WorkBuddy
 .workbuddy/
 
+# 本地索引/规则资产（CodeGraph / Trellis init 生成）
+.codegraph/
+.trellis/
+
 # OS
 Thumbs.db
 .DS_Store
