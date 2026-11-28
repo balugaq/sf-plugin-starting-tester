@@ -39,6 +39,11 @@ download_version() {
   echo "$detail" | jq -c '.data.files[]?' | while read -r f; do
     fid=$(echo "$f" | jq -r '.id')
     fname=$(echo "$f" | jq -r '.name')
+    # 源码包/文档包没有可运行的 class（且可能连带 plugin.yml），装上只会报 Cannot find main class
+    if echo "$fname" | grep -qiE -- '-(sources|javadoc|src)\.jar$'; then
+      echo "跳过非运行 jar: $fname"
+      continue
+    fi
     [ -z "$fid" ] || [ "$fid" = "null" ] && continue
     cache_file="$GZ_CACHE/${key_name}__$(echo "$fname" | tr '/ ' '__')"
     if [ -s "$cache_file" ]; then
@@ -96,9 +101,23 @@ download_plugin() {
   download_version "$slug" "$pid" "$vid"
 }
 
+# jar 内的插件描述文件：优先 Bukkit 的 plugin.yml，现代 Paper 插件用 paper-plugin.yml
+manifest_of() {  # $1 = jar 路径，输出实际存在的描述文件名（不存在则输出空）
+  if unzip -l "$1" plugin.yml >/dev/null 2>&1; then echo plugin.yml
+  elif unzip -l "$1" paper-plugin.yml >/dev/null 2>&1; then echo paper-plugin.yml
+  fi
+}
+
 read_deps() {  # $1 = depend | softdepend, $2 = jar 路径；兼容列表格式（- X）与行内格式（[X, Y]）
-  # unzip 找不到 plugin.yml 时退出码 11，pipefail 会把它传成脚本退出码，必须吞掉
-  { unzip -p "$2" plugin.yml 2>/dev/null || true; } | python3 -c "
+  local mf
+  mf=$(manifest_of "$2")
+  [ -z "$mf" ] && return 0
+  # plugin.yml 与 paper-plugin.yml 的依赖结构不同，分开解析：
+  # paper 的 dependencies.server/bootstrap 每项可为字符串或 {name, required-to-load}，
+  # required-to-load: false 等价于 softdepend
+  # unzip 找不到描述文件时退出码 11，pipefail 会把它传成脚本退出码，必须吞掉
+  if [ "$mf" = "plugin.yml" ]; then
+    { unzip -p "$2" plugin.yml 2>/dev/null || true; } | python3 -c "
 import re, sys
 key, out, grab = sys.argv[1], [], False
 for line in sys.stdin:
@@ -117,6 +136,47 @@ for line in sys.stdin:
         if li:
             out.append(li.group(1).strip().strip('\'\"'))
 print('\n'.join(dict.fromkeys(out)))" "$1" | tr -d '\r'
+  else
+    { unzip -p "$2" paper-plugin.yml 2>/dev/null || true; } | python3 -c "
+import re, sys
+out, cur, seen = [], None, False
+def flush():
+    global cur
+    if cur and cur.get('name'):
+        out.append((cur['name'], cur.get('required', True)))
+    cur = None
+for raw in sys.stdin:
+    s = raw.rstrip('\r\n')
+    if not s.strip() or s.strip().startswith('#'):
+        continue
+    indent = len(s) - len(s.lstrip())
+    st = s.strip()
+    if indent == 0:
+        if seen:
+            break
+        if st.split(':', 1)[0] == 'dependencies':
+            seen = True
+        continue
+    if st.startswith('- '):
+        flush()
+        item = st[2:].strip()
+        m = re.match(r'([\w-]+)\s*:\s*(.*)$', item)
+        if m and m.group(1) == 'name':
+            cur = {'name': m.group(2).strip().strip('\'\"')}
+        else:
+            cur = {'name': item.strip('\'\"'), 'required': True}
+        continue
+    m = re.match(r'([\w-]+)\s*:\s*(.*)$', st)
+    if m and cur is not None and m.group(1) == 'required-to-load':
+        cur['required'] = m.group(2).strip().lower() not in ('false', 'no')
+flush()
+print('\n'.join('HARD ' + n if r else 'SOFT ' + n for n, r in out))" | tr -d '\r' | while read -r kind dep; do
+      # depend 取硬依赖，softdepend 取 required-to-load: false 的软依赖
+      if [ "$1" = "depend" ] && [ "$kind" = "HARD" ]; then echo "$dep"
+      elif [ "$1" = "softdepend" ] && [ "$kind" = "SOFT" ]; then echo "$dep"
+      fi
+    done
+  fi
 }
 
 # ---- 全站目录：一次拉取所有项目（slug + 站内 name），缓存复用，不硬编码任何别名 ----
@@ -157,10 +217,15 @@ dep_candidates() {
   jq -s -r --arg d "$d" '[.[] | select((.slug | ascii_downcase | startswith($d)) or ((.name // "") | ascii_downcase | startswith($d)))] | sort_by(-(.downloads // 0)) | .[].slug' "$CATALOG_FILE" | head -5
 }
 
-# 从 jar 里取 plugin.yml 的真实 name（去掉引号、\r 与首尾空格）
+# 从 jar 里取描述文件的真实 name（plugin.yml 优先，paper-plugin.yml 兜底；去掉引号、\r 与首尾空格）
 read_jar_name() {
-  unzip -p "$1" plugin.yml 2>/dev/null \
-    | awk -F: '/^name:/{gsub(/["'"'"']/,"",$2); gsub(/^[ \t]+|[ \t]+$/,"",$2); gsub(/\r/,"",$2); print $2; exit}'
+  local src out
+  for src in plugin.yml paper-plugin.yml; do
+    out=$({ unzip -p "$1" "$src" 2>/dev/null || true; } \
+      | awk -F: '/^name:/{gsub(/["'"'"']/,"",$2); gsub(/^[ \t]+|[ \t]+$/,"",$2); gsub(/\r/,"",$2); print $2; exit}')
+    if [ -n "$out" ]; then echo "$out"; return 0; fi
+  done
+  return 0
 }
 
 download_dep() {
@@ -224,18 +289,18 @@ for SLUG in $(echo "$SLUGS" | tr ',' ' '); do
     jq --arg s "$SLUG" '. + [{slug:$s, name:$s, jar:null, downloaded:false}]' "$MANIFEST" > "$MANIFEST.tmp" && mv "$MANIFEST.tmp" "$MANIFEST"
     continue
   fi
-  # 最新下载的 jar 可能是无 plugin.yml 的附属产物（如 -all.jar），按新旧顺序挑第一个有效的
+  # 最新下载的 jar 可能是无插件描述文件的附属产物（如 -all.jar），按新旧顺序挑第一个有效的
   # jar 名普遍带空格，必须按行读不能按词拆
   JAR=""
   while IFS= read -r cand; do
     [ "$cand" -nt "$OUT_DIR/.marker" ] || continue
-    if unzip -l "$cand" plugin.yml >/dev/null 2>&1; then JAR="$cand"; break; fi
+    if [ -n "$(manifest_of "$cand")" ]; then JAR="$cand"; break; fi
     # 打出 unzip 的报错，方便在 CI 日志里诊断瞬时下载异常
     unzip -l "$cand" plugin.yml 2>&1 | head -2 || true
   done < <(ls -t "$OUT_DIR"/*.jar 2>/dev/null)
   if [ -z "$JAR" ]; then
     jq --arg s "$SLUG" '. + [{slug:$s, name:$s, jar:null, downloaded:false}]' "$MANIFEST" > "$MANIFEST.tmp" && mv "$MANIFEST.tmp" "$MANIFEST"
-    echo "警告: $SLUG 下载的 jar 均无 plugin.yml，跳过依赖解析"
+    echo "警告: $SLUG 下载的 jar 均无 plugin.yml/paper-plugin.yml，跳过依赖解析"
     continue
   fi
   PNAME=$(read_jar_name "$JAR")
@@ -254,17 +319,21 @@ for SLUG in $(echo "$SLUGS" | tr ',' ' '); do
   done
 done
 
-# 同名依赖被多个插件重复下载时按插件名去重：只保留每个 plugin.yml name 的最新 jar
+# 同名依赖被多个插件重复下载时按插件名去重：只保留每个插件名的最新 jar
 python3 - "$OUT_DIR" <<'EOF'
 import json, glob, os, zipfile, sys
 d = sys.argv[1]
 keep = {}
 for j in glob.glob(os.path.join(d, "*.jar")):
-    try:
-        with zipfile.ZipFile(j) as z:
-            name = z.read("plugin.yml").decode("utf-8", "ignore")
-    except Exception:
-        os.remove(j)  # 连 plugin.yml 都没有的 jar 装上也无效
+    name = None
+    for mf in ("plugin.yml", "paper-plugin.yml"):
+        try:
+            name = zipfile.ZipFile(j).read(mf).decode("utf-8", "ignore")
+            break
+        except (KeyError, zipfile.BadZipFile):
+            pass
+    if name is None:
+        os.remove(j)  # 连插件描述文件都没有的 jar 装上也无效
         continue
     m = None
     for line in name.splitlines():
